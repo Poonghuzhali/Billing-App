@@ -15,9 +15,9 @@ export default function Billing() {
   const scanBuffer = useRef('');
 
   useEffect(() => {
-    fetch('/data/inventory.json').then(r => r.json()).then(setProducts);
-    fetch('/data/customers.json').then(r => r.json()).then(setCustomers);
-    fetch('/data/bills.json').then(r => r.json()).then(setBills);
+    fetch(`${import.meta.env.BASE_URL}data/inventory.json`).then(r => r.json()).then(setProducts);
+    fetch(`${import.meta.env.BASE_URL}data/customers.json`).then(r => r.json()).then(setCustomers);
+    fetch(`${import.meta.env.BASE_URL}data/bills.json`).then(r => r.json()).then(setBills);
   }, []);
 
   const addToCart = useCallback((product) => {

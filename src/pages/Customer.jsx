@@ -8,7 +8,7 @@ export default function Customer() {
   const [form, setForm] = useState({ name: '', phone: '', email: '', address: '' });
 
   useEffect(() => {
-    fetch('/data/customers.json').then(r => r.json()).then(setCustomers);
+    fetch(`${import.meta.env.BASE_URL}data/customers.json`).then(r => r.json()).then(setCustomers);
   }, []);
 
   const filtered = customers.filter(c =>

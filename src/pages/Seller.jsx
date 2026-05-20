@@ -8,7 +8,7 @@ export default function Seller() {
   const [form, setForm] = useState({ name: '', contactPerson: '', phone: '', email: '', address: '', category: '', status: 'Active' });
 
   useEffect(() => {
-    fetch('/data/sellers.json').then(r => r.json()).then(setSellers);
+    fetch(`${import.meta.env.BASE_URL}data/sellers.json`).then(r => r.json()).then(setSellers);
   }, []);
 
   const filtered = sellers.filter(s =>

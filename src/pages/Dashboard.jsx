@@ -19,8 +19,8 @@ export default function Dashboard() {
 
   useEffect(() => {
     Promise.all([
-      fetch('/data/inventory.json').then(r => r.json()),
-      fetch('/data/bills.json').then(r => r.json()),
+      fetch(`${import.meta.env.BASE_URL}data/inventory.json`).then(r => r.json()),
+      fetch(`${import.meta.env.BASE_URL}data/bills.json`).then(r => r.json()),
     ]).then(([inv, bls]) => {
       setInventory(inv);
       setBills(bls);

@@ -6,7 +6,7 @@ export default function Bills() {
   const [selectedBill, setSelectedBill] = useState(null);
 
   useEffect(() => {
-    fetch('/data/bills.json').then(r => r.json()).then(setBills);
+    fetch(`${import.meta.env.BASE_URL}data/bills.json`).then(r => r.json()).then(setBills);
   }, []);
 
   const filtered = bills.filter(b =>

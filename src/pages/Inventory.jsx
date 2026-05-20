@@ -9,7 +9,7 @@ export default function Inventory() {
   const [form, setForm] = useState({ name: '', sku: '', barcode: '', invoiceNumber: '', gst: '0%', mfgDate: '', expDate: '', price: '', stock: '', category: '', unit: 'Pieces' });
 
   useEffect(() => {
-    fetch('/data/inventory.json')
+    fetch(`${import.meta.env.BASE_URL}data/inventory.json`)
       .then(r => r.json())
       .then(setProducts);
   }, []);
