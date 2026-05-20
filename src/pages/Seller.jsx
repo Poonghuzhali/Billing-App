@@ -22,7 +22,7 @@ export default function Seller() {
     if (!f.name.trim()) errs.name = 'Seller name is required';
     if (!f.contactPerson.trim()) errs.contactPerson = 'Contact person is required';
     if (!f.phone.trim()) errs.phone = 'Phone is required';
-    else if (!/^\d{10}$/.test(f.phone.replace(/\D/g, ''))) errs.phone = 'Enter a valid 10-digit phone number';
+    else if (!/^\d{10}$/.test(f.phone)) errs.phone = 'Enter exactly 10 digits only';
     if (!f.email.trim()) errs.email = 'Email is required';
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(f.email)) errs.email = 'Enter a valid email address';
     if (!f.category.trim()) errs.category = 'Category is required';

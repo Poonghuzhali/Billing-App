@@ -21,7 +21,7 @@ export default function Customer() {
     const errs = {};
     if (!f.name.trim()) errs.name = 'Name is required';
     if (!f.phone.trim()) errs.phone = 'Phone is required';
-    else if (!/^\d{10}$/.test(f.phone.replace(/\D/g, ''))) errs.phone = 'Enter a valid 10-digit phone number';
+    else if (!/^\d{10}$/.test(f.phone)) errs.phone = 'Enter exactly 10 digits only';
     if (!f.email.trim()) errs.email = 'Email is required';
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(f.email)) errs.email = 'Enter a valid email address';
     if (!f.address.trim()) errs.address = 'Address is required';
