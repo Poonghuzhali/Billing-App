@@ -76,26 +76,28 @@ export default function Bills() {
               </button>
             </div>
             <div className="p-6 space-y-4">
-              <div className="grid grid-cols-2 gap-4 text-sm">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                 <div><span className="text-slate-500">Bill Number:</span> <span className="font-medium">{selectedBill.billNumber}</span></div>
                 <div><span className="text-slate-500">Date:</span> <span className="font-medium">{selectedBill.date}</span></div>
                 <div><span className="text-slate-500">Customer:</span> <span className="font-medium">{selectedBill.customerName}</span></div>
               </div>
-              <table className="w-full text-left">
-                <thead className="bg-gray-50 text-slate-500 text-xs uppercase tracking-widest">
-                  <tr><th className="p-3">Product</th><th className="p-3">Qty</th><th className="p-3">Price</th><th className="p-3 text-right">Total</th></tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {selectedBill.items.map((item, i) => (
-                    <tr key={i}>
-                      <td className="p-3 text-slate-800">{item.productName}</td>
-                      <td className="p-3 text-slate-600">{item.quantity}</td>
-                      <td className="p-3 text-slate-600">₹{item.price}</td>
-                      <td className="p-3 text-right font-medium">₹{item.total.toFixed(2)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left">
+                  <thead className="bg-gray-50 text-slate-500 text-xs uppercase tracking-widest">
+                    <tr><th className="p-3">Product</th><th className="p-3">Qty</th><th className="p-3">Price</th><th className="p-3 text-right">Total</th></tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {selectedBill.items.map((item, i) => (
+                      <tr key={i}>
+                        <td className="p-3 text-slate-800">{item.productName}</td>
+                        <td className="p-3 text-slate-600">{item.quantity}</td>
+                        <td className="p-3 text-slate-600">₹{item.price}</td>
+                        <td className="p-3 text-right font-medium">₹{item.total.toFixed(2)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
               <div className="border-t pt-4 space-y-1 text-sm">
                 <div className="flex justify-between"><span className="text-slate-500">Subtotal</span><span>₹{selectedBill.subtotal.toFixed(2)}</span></div>
                 <div className="flex justify-between"><span className="text-slate-500">GST</span><span>₹{selectedBill.gst.toFixed(2)}</span></div>

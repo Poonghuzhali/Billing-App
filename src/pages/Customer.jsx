@@ -76,7 +76,7 @@ export default function Customer() {
                     <td className="p-4 font-medium text-slate-800">{c.name}</td>
                     <td className="p-4 text-slate-600">{c.phone}</td>
                     <td className="p-4 text-slate-600">{c.email}</td>
-                    <td className="p-4 text-slate-600 max-w-xs truncate">{c.address}</td>
+                    <td className="p-4 text-slate-600 truncate max-w-[160px] sm:max-w-xs">{c.address}</td>
                     <td className="p-4 text-center">
                       <div className="flex justify-center gap-2">
                         <button onClick={() => handleEdit(c)} className="p-1.5 bg-blue-100 text-blue-600 rounded-lg hover:bg-blue-200 transition">

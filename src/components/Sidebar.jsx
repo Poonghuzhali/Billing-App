@@ -13,12 +13,11 @@ export default function Sidebar({ isOpen, onClose }) {
   return (
     <>
       <div
-        className={`fixed inset-0 bg-black/50 z-50 transition-opacity lg:hidden ${
+        className={`fixed inset-0 bg-black/50 z-40 transition-opacity lg:hidden ${
           isOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
         }`}
         onClick={onClose}
       />
-
       <aside
         className={`w-64 bg-slate-900 text-white flex flex-col min-h-screen fixed left-0 top-0 z-50 transition-transform lg:translate-x-0 ${
           isOpen ? 'translate-x-0' : '-translate-x-full'
