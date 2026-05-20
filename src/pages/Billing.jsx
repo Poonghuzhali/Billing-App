@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import CameraScanner from '../components/CameraScanner';
+import { loadData, saveData } from '../utils/storage';
 
 export default function Billing() {
   const [products, setProducts] = useState([]);
@@ -15,13 +16,15 @@ export default function Billing() {
   const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
   const [showAddCustomerModal, setShowAddCustomerModal] = useState(false);
   const [newCustomer, setNewCustomer] = useState({ name: '', phone: '', email: '', address: '' });
+  const [customerErrors, setCustomerErrors] = useState({});
+  const [billError, setBillError] = useState('');
   const scanInputRef = useRef(null);
   const scanBuffer = useRef('');
 
   useEffect(() => {
-    fetch(`${import.meta.env.BASE_URL}data/inventory.json`).then(r => r.json()).then(setProducts);
-    fetch(`${import.meta.env.BASE_URL}data/customers.json`).then(r => r.json()).then(setCustomers);
-    fetch(`${import.meta.env.BASE_URL}data/bills.json`).then(r => r.json()).then(setBills);
+    loadData('inventory', 'inventory.json').then(setProducts);
+    loadData('customers', 'customers.json').then(setCustomers);
+    loadData('bills', 'bills.json').then(setBills);
   }, []);
 
   const addToCart = useCallback((product) => {
@@ -114,7 +117,9 @@ export default function Billing() {
   };
 
   const handleGenerateBill = () => {
-    if (!customerName || cart.length === 0) return;
+    if (!customerName) { setBillError('Please select a customer'); return; }
+    if (cart.length === 0) { setBillError('Add at least one item to the cart'); return; }
+    setBillError('');
     const newBill = {
       id: Date.now(),
       billNumber: generateBillNumber(),
@@ -130,9 +135,12 @@ export default function Billing() {
       gst: gstAmount,
       grandTotal
     };
-    setBills(prev => [...prev, newBill]);
+    const updated = [...bills, newBill];
+    setBills(updated);
+    saveData('bills', updated);
     setCart([]);
     setCustomerName('');
+    setCustomerSearch('');
     setShowPaymentModal(false);
     alert(`Bill ${newBill.billNumber} generated successfully!`);
   };
@@ -143,13 +151,27 @@ export default function Billing() {
     [c.name, c.phone].some(v => v.toLowerCase().includes(customerSearch.toLowerCase()))
   );
 
+  const validateNewCustomer = (f) => {
+    const errs = {};
+    if (!f.name.trim()) errs.name = 'Name is required';
+    if (!f.phone.trim()) errs.phone = 'Phone is required';
+    else if (!/^\d{10}$/.test(f.phone.replace(/\D/g, ''))) errs.phone = 'Enter valid 10-digit phone';
+    if (!f.email.trim()) errs.email = 'Email is required';
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(f.email)) errs.email = 'Enter a valid email';
+    setCustomerErrors(errs);
+    return Object.keys(errs).length === 0;
+  };
+
   const handleAddCustomer = () => {
-    if (!newCustomer.name || !newCustomer.phone) return;
+    if (!validateNewCustomer(newCustomer)) return;
     const added = { ...newCustomer, id: Date.now() };
-    setCustomers(prev => [...prev, added]);
+    const updated = [...customers, added];
+    setCustomers(updated);
+    saveData('customers', updated);
     setCustomerName(added.name);
     setCustomerSearch(added.name);
     setShowAddCustomerModal(false);
+    setCustomerErrors({});
     setNewCustomer({ name: '', phone: '', email: '', address: '' });
   };
 
@@ -289,7 +311,8 @@ export default function Billing() {
                 <span>₹{grandTotal.toFixed(2)}</span>
               </div>
             </div>
-            <button onClick={() => cart.length > 0 && setShowPaymentModal(true)} disabled={cart.length === 0} className="w-full mt-4 bg-emerald-600 text-white px-5 py-3 rounded-lg text-sm font-semibold hover:bg-emerald-700 transition disabled:opacity-50 disabled:cursor-not-allowed">Generate Bill</button>
+            {billError && <p className="text-red-500 text-xs mt-2 text-center">{billError}</p>}
+            <button onClick={() => { setBillError(''); if (cart.length > 0 && customerName) setShowPaymentModal(true); else if (!customerName) setBillError('Please select a customer'); else setBillError('Add at least one item to the cart'); }} className="w-full mt-4 bg-emerald-600 text-white px-5 py-3 rounded-lg text-sm font-semibold hover:bg-emerald-700 transition">Generate Bill</button>
           </div>
         </div>
       </div>
@@ -299,7 +322,7 @@ export default function Billing() {
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-lg font-bold text-slate-800">Add Customer</h3>
-              <button onClick={() => setShowAddCustomerModal(false)} className="p-1 hover:bg-gray-100 rounded-lg transition">
+              <button onClick={() => { setShowAddCustomerModal(false); setCustomerErrors({}); }} className="p-1 hover:bg-gray-100 rounded-lg transition">
                 <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
               </button>
             </div>
@@ -307,17 +330,20 @@ export default function Billing() {
               <div>
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Name</label>
                 <input value={newCustomer.name} onChange={e => setNewCustomer({...newCustomer, name: e.target.value})} className="w-full border border-gray-200 text-slate-700 text-sm rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" />
+                {customerErrors.name && <p className="text-red-500 text-xs mt-1">{customerErrors.name}</p>}
               </div>
               <div>
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Phone</label>
                 <input value={newCustomer.phone} onChange={e => setNewCustomer({...newCustomer, phone: e.target.value})} className="w-full border border-gray-200 text-slate-700 text-sm rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" />
+                {customerErrors.phone && <p className="text-red-500 text-xs mt-1">{customerErrors.phone}</p>}
               </div>
               <div>
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Email</label>
                 <input value={newCustomer.email} onChange={e => setNewCustomer({...newCustomer, email: e.target.value})} className="w-full border border-gray-200 text-slate-700 text-sm rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" />
+                {customerErrors.email && <p className="text-red-500 text-xs mt-1">{customerErrors.email}</p>}
               </div>
               <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
-                <button onClick={() => setShowAddCustomerModal(false)} className="px-5 py-2.5 text-sm font-semibold text-slate-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition">Cancel</button>
+                <button onClick={() => { setShowAddCustomerModal(false); setCustomerErrors({}); }} className="px-5 py-2.5 text-sm font-semibold text-slate-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition">Cancel</button>
                 <button onClick={handleAddCustomer} className="px-5 py-2.5 text-sm font-semibold text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 transition">Add</button>
               </div>
             </div>

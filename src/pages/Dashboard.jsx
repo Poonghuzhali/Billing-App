@@ -10,6 +10,7 @@ import {
   Tooltip,
   Legend,
 } from 'chart.js';
+import { loadData } from '../utils/storage';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, ArcElement, Title, Tooltip, Legend);
 
@@ -19,8 +20,8 @@ export default function Dashboard() {
 
   useEffect(() => {
     Promise.all([
-      fetch(`${import.meta.env.BASE_URL}data/inventory.json`).then(r => r.json()),
-      fetch(`${import.meta.env.BASE_URL}data/bills.json`).then(r => r.json()),
+      loadData('inventory', 'inventory.json'),
+      loadData('bills', 'bills.json'),
     ]).then(([inv, bls]) => {
       setInventory(inv);
       setBills(bls);

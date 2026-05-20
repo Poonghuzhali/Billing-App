@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { loadData, saveData } from '../utils/storage';
 
 export default function Bills() {
   const [bills, setBills] = useState([]);
@@ -6,12 +7,20 @@ export default function Bills() {
   const [selectedBill, setSelectedBill] = useState(null);
 
   useEffect(() => {
-    fetch(`${import.meta.env.BASE_URL}data/bills.json`).then(r => r.json()).then(setBills);
+    loadData('bills', 'bills.json').then(setBills);
   }, []);
 
   const filtered = bills.filter(b =>
     [b.billNumber, b.customerName].some(v => v.toLowerCase().includes(search.toLowerCase()))
   );
+
+  const handleDelete = (id, e) => {
+    e.stopPropagation();
+    const updated = bills.filter(b => b.id !== id);
+    setBills(updated);
+    saveData('bills', updated);
+    if (selectedBill?.id === id) setSelectedBill(null);
+  };
 
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto">
@@ -56,7 +65,12 @@ export default function Bills() {
                     <td className="p-4 text-slate-600">₹{b.gst.toFixed(2)}</td>
                     <td className="p-4 font-semibold text-emerald-600">₹{b.grandTotal.toFixed(2)}</td>
                     <td className="p-4 text-center">
-                      <button onClick={(e) => { e.stopPropagation(); setSelectedBill(b); }} className="px-3 py-1.5 bg-blue-100 text-blue-700 rounded-lg text-xs font-semibold hover:bg-blue-200 transition">View</button>
+                      <div className="flex justify-center gap-2">
+                        <button onClick={(e) => { e.stopPropagation(); setSelectedBill(b); }} className="px-3 py-1.5 bg-blue-100 text-blue-700 rounded-lg text-xs font-semibold hover:bg-blue-200 transition">View</button>
+                        <button onClick={(e) => handleDelete(b.id, e)} className="p-1.5 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition">
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))

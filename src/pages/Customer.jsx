@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { loadData, saveData } from '../utils/storage';
 
 export default function Customer() {
   const [customers, setCustomers] = useState([]);
@@ -6,34 +7,55 @@ export default function Customer() {
   const [showModal, setShowModal] = useState(false);
   const [editId, setEditId] = useState(null);
   const [form, setForm] = useState({ name: '', phone: '', email: '', address: '' });
+  const [errors, setErrors] = useState({});
 
   useEffect(() => {
-    fetch(`${import.meta.env.BASE_URL}data/customers.json`).then(r => r.json()).then(setCustomers);
+    loadData('customers', 'customers.json').then(setCustomers);
   }, []);
 
   const filtered = customers.filter(c =>
     [c.name, c.phone, c.email].some(v => v.toLowerCase().includes(search.toLowerCase()))
   );
 
+  const validateCustomer = (f) => {
+    const errs = {};
+    if (!f.name.trim()) errs.name = 'Name is required';
+    if (!f.phone.trim()) errs.phone = 'Phone is required';
+    else if (!/^\d{10}$/.test(f.phone.replace(/\D/g, ''))) errs.phone = 'Enter a valid 10-digit phone number';
+    if (!f.email.trim()) errs.email = 'Email is required';
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(f.email)) errs.email = 'Enter a valid email address';
+    if (!f.address.trim()) errs.address = 'Address is required';
+    setErrors(errs);
+    return Object.keys(errs).length === 0;
+  };
+
   const handleEdit = (c) => {
     setForm(c);
     setEditId(c.id);
+    setErrors({});
     setShowModal(true);
   };
 
   const handleDelete = (id) => {
-    setCustomers(prev => prev.filter(c => c.id !== id));
+    const updated = customers.filter(c => c.id !== id);
+    setCustomers(updated);
+    saveData('customers', updated);
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    if (!validateCustomer(form)) return;
+    let updated;
     if (editId) {
-      setCustomers(prev => prev.map(c => c.id === editId ? { ...form, id: editId } : c));
+      updated = customers.map(c => c.id === editId ? { ...form, id: editId } : c);
     } else {
-      setCustomers(prev => [...prev, { ...form, id: Date.now() }]);
+      updated = [...customers, { ...form, id: Date.now() }];
     }
+    setCustomers(updated);
+    saveData('customers', updated);
     setShowModal(false);
     setEditId(null);
+    setErrors({});
     setForm({ name: '', phone: '', email: '', address: '' });
   };
 
@@ -49,7 +71,7 @@ export default function Customer() {
           <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
           <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by name, phone or email..." className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 text-slate-700 text-sm rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" />
         </div>
-        <button onClick={() => { setEditId(null); setForm({ name: '', phone: '', email: '', address: '' }); setShowModal(true); }} className="bg-emerald-600 text-white px-5 py-2.5 rounded-lg text-sm font-semibold hover:bg-emerald-700 transition flex items-center gap-2 whitespace-nowrap">
+        <button onClick={() => { setEditId(null); setErrors({}); setForm({ name: '', phone: '', email: '', address: '' }); setShowModal(true); }} className="bg-emerald-600 text-white px-5 py-2.5 rounded-lg text-sm font-semibold hover:bg-emerald-700 transition flex items-center gap-2 whitespace-nowrap">
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" /></svg>
           Add Customer
         </button>
@@ -100,29 +122,33 @@ export default function Customer() {
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between p-6 border-b border-gray-100">
               <h3 className="text-lg font-bold text-slate-800">{editId ? 'Edit Customer' : 'Add Customer'}</h3>
-              <button onClick={() => setShowModal(false)} className="p-1 hover:bg-gray-100 rounded-lg transition">
+              <button onClick={() => { setShowModal(false); setErrors({}); }} className="p-1 hover:bg-gray-100 rounded-lg transition">
                 <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
               </button>
             </div>
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
               <div>
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Name</label>
-                <input value={form.name} onChange={e => setForm({...form, name: e.target.value})} required className="w-full border border-gray-200 text-slate-700 text-sm rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" />
+                <input value={form.name} onChange={e => setForm({...form, name: e.target.value})} className="w-full border border-gray-200 text-slate-700 text-sm rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" />
+                {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name}</p>}
               </div>
               <div>
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Phone</label>
-                <input value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} required className="w-full border border-gray-200 text-slate-700 text-sm rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" />
+                <input value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} className="w-full border border-gray-200 text-slate-700 text-sm rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" />
+                {errors.phone && <p className="text-red-500 text-xs mt-1">{errors.phone}</p>}
               </div>
               <div>
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Email</label>
-                <input type="email" value={form.email} onChange={e => setForm({...form, email: e.target.value})} required className="w-full border border-gray-200 text-slate-700 text-sm rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" />
+                <input type="email" value={form.email} onChange={e => setForm({...form, email: e.target.value})} className="w-full border border-gray-200 text-slate-700 text-sm rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" />
+                {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
               </div>
               <div>
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Address</label>
-                <textarea value={form.address} onChange={e => setForm({...form, address: e.target.value})} rows={2} required className="w-full border border-gray-200 text-slate-700 text-sm rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" />
+                <textarea value={form.address} onChange={e => setForm({...form, address: e.target.value})} rows={2} className="w-full border border-gray-200 text-slate-700 text-sm rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" />
+                {errors.address && <p className="text-red-500 text-xs mt-1">{errors.address}</p>}
               </div>
               <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
-                <button type="button" onClick={() => setShowModal(false)} className="px-5 py-2.5 text-sm font-semibold text-slate-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition">Cancel</button>
+                <button type="button" onClick={() => { setShowModal(false); setErrors({}); }} className="px-5 py-2.5 text-sm font-semibold text-slate-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition">Cancel</button>
                 <button type="submit" className="px-5 py-2.5 text-sm font-semibold text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 transition">{editId ? 'Update' : 'Save'}</button>
               </div>
             </form>

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import Barcode from '../components/Barcode';
+import { loadData, saveData } from '../utils/storage';
 
 export default function Inventory() {
   const [products, setProducts] = useState([]);
@@ -7,11 +8,10 @@ export default function Inventory() {
   const [showModal, setShowModal] = useState(false);
   const [editIndex, setEditIndex] = useState(null);
   const [form, setForm] = useState({ name: '', sku: '', barcode: '', invoiceNumber: '', gst: '0%', mfgDate: '', expDate: '', price: '', stock: '', category: '', unit: 'Pieces' });
+  const [errors, setErrors] = useState({});
 
   useEffect(() => {
-    fetch(`${import.meta.env.BASE_URL}data/inventory.json`)
-      .then(r => r.json())
-      .then(setProducts);
+    loadData('inventory', 'inventory.json').then(setProducts);
   }, []);
 
   const filtered = products.filter(p =>
@@ -20,29 +20,52 @@ export default function Inventory() {
     )
   );
 
+  const validateProduct = (f) => {
+    const errs = {};
+    if (!f.name.trim()) errs.name = 'Product name is required';
+    if (!f.sku.trim()) errs.sku = 'SKU is required';
+    if (!f.barcode.trim()) errs.barcode = 'Barcode is required';
+    if (!f.invoiceNumber.trim()) errs.invoiceNumber = 'Invoice number is required';
+    if (!f.category.trim()) errs.category = 'Category is required';
+    if (!f.price || isNaN(f.price) || Number(f.price) <= 0) errs.price = 'Enter a valid price greater than 0';
+    if (f.stock === '' || isNaN(f.stock) || Number(f.stock) < 0) errs.stock = 'Enter a valid stock quantity';
+    if (!f.mfgDate) errs.mfgDate = 'MFG date is required';
+    if (!f.expDate) errs.expDate = 'Expiry date is required';
+    if (f.mfgDate && f.expDate && f.expDate <= f.mfgDate) errs.expDate = 'Expiry must be after MFG date';
+    setErrors(errs);
+    return Object.keys(errs).length === 0;
+  };
+
   const handleEdit = (index) => {
     setForm(products[index]);
     setEditIndex(index);
+    setErrors({});
     setShowModal(true);
   };
 
   const handleDelete = (index) => {
     const updated = products.filter((_, i) => i !== index);
     setProducts(updated);
+    saveData('inventory', updated);
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    if (!validateProduct(form)) return;
     if (editIndex !== null) {
       const updated = [...products];
       updated[editIndex] = { ...form, id: products[editIndex].id, price: Number(form.price), stock: Number(form.stock) };
       setProducts(updated);
+      saveData('inventory', updated);
     } else {
       const newProduct = { ...form, id: Date.now(), price: Number(form.price), stock: Number(form.stock) };
-      setProducts([...products, newProduct]);
+      const updated = [...products, newProduct];
+      setProducts(updated);
+      saveData('inventory', updated);
     }
     setShowModal(false);
     setEditIndex(null);
+    setErrors({});
     setForm({ name: '', sku: '', barcode: '', invoiceNumber: '', gst: '0%', mfgDate: '', expDate: '', price: '', stock: '', category: '', unit: 'Pieces' });
   };
 
@@ -58,7 +81,7 @@ export default function Inventory() {
           <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
           <input type="text" placeholder="Search by name, SKU, invoice..." value={search} onChange={e => setSearch(e.target.value)} className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 text-slate-700 text-sm rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" />
         </div>
-        <button onClick={() => { setEditIndex(null); setForm({ name: '', sku: '', barcode: '', invoiceNumber: '', gst: '0%', mfgDate: '', expDate: '', price: '', stock: '', category: '', unit: 'Pieces' }); setShowModal(true); }} className="bg-emerald-600 text-white px-5 py-2.5 rounded-lg text-sm font-semibold hover:bg-emerald-700 transition flex items-center gap-2 whitespace-nowrap">
+        <button onClick={() => { setEditIndex(null); setErrors({}); setForm({ name: '', sku: '', barcode: '', invoiceNumber: '', gst: '0%', mfgDate: '', expDate: '', price: '', stock: '', category: '', unit: 'Pieces' }); setShowModal(true); }} className="bg-emerald-600 text-white px-5 py-2.5 rounded-lg text-sm font-semibold hover:bg-emerald-700 transition flex items-center gap-2 whitespace-nowrap">
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" /></svg>
           Add Product
         </button>
@@ -121,7 +144,7 @@ export default function Inventory() {
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between p-6 border-b border-gray-100">
               <h3 className="text-lg font-bold text-slate-800">{editIndex !== null ? 'Edit Product' : 'Add Product'}</h3>
-              <button onClick={() => setShowModal(false)} className="p-1 hover:bg-gray-100 rounded-lg transition">
+              <button onClick={() => { setShowModal(false); setErrors({}); }} className="p-1 hover:bg-gray-100 rounded-lg transition">
                 <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
               </button>
             </div>
@@ -129,15 +152,18 @@ export default function Inventory() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Product Name</label>
-                  <input value={form.name} onChange={e => setForm({...form, name: e.target.value})} required className="w-full border border-gray-200 text-slate-700 text-sm rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" />
+                  <input value={form.name} onChange={e => setForm({...form, name: e.target.value})} className="w-full border border-gray-200 text-slate-700 text-sm rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" />
+                  {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name}</p>}
                 </div>
                 <div>
                   <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">SKU</label>
-                  <input value={form.sku} onChange={e => setForm({...form, sku: e.target.value})} required className="w-full border border-gray-200 text-slate-700 text-sm rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" />
+                  <input value={form.sku} onChange={e => setForm({...form, sku: e.target.value})} className="w-full border border-gray-200 text-slate-700 text-sm rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" />
+                  {errors.sku && <p className="text-red-500 text-xs mt-1">{errors.sku}</p>}
                 </div>
                 <div>
                   <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Barcode</label>
-                  <input value={form.barcode} onChange={e => setForm({...form, barcode: e.target.value})} required className="w-full border border-gray-200 text-slate-700 text-sm rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" />
+                  <input value={form.barcode} onChange={e => setForm({...form, barcode: e.target.value})} className="w-full border border-gray-200 text-slate-700 text-sm rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" />
+                  {errors.barcode && <p className="text-red-500 text-xs mt-1">{errors.barcode}</p>}
                   {form.barcode && (
                     <div className="mt-2 p-2 bg-gray-50 rounded flex justify-center">
                       <Barcode value={form.barcode} width={1.5} height={30} />
@@ -146,11 +172,12 @@ export default function Inventory() {
                 </div>
                 <div>
                   <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Invoice Number</label>
-                  <input value={form.invoiceNumber} onChange={e => setForm({...form, invoiceNumber: e.target.value})} required className="w-full border border-gray-200 text-slate-700 text-sm rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" />
+                  <input value={form.invoiceNumber} onChange={e => setForm({...form, invoiceNumber: e.target.value})} className="w-full border border-gray-200 text-slate-700 text-sm rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" />
+                  {errors.invoiceNumber && <p className="text-red-500 text-xs mt-1">{errors.invoiceNumber}</p>}
                 </div>
                 <div>
                   <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">GST</label>
-                  <select value={form.gst} onChange={e => setForm({...form, gst: e.target.value})} required className="w-full border border-gray-200 text-slate-700 text-sm rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500">
+                  <select value={form.gst} onChange={e => setForm({...form, gst: e.target.value})} className="w-full border border-gray-200 text-slate-700 text-sm rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500">
                     <option value="0%">0%</option>
                     <option value="5%">5%</option>
                     <option value="12%">12%</option>
@@ -160,7 +187,8 @@ export default function Inventory() {
                 </div>
                 <div>
                   <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Category</label>
-                  <input value={form.category} onChange={e => setForm({...form, category: e.target.value})} required className="w-full border border-gray-200 text-slate-700 text-sm rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" />
+                  <input value={form.category} onChange={e => setForm({...form, category: e.target.value})} className="w-full border border-gray-200 text-slate-700 text-sm rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" />
+                  {errors.category && <p className="text-red-500 text-xs mt-1">{errors.category}</p>}
                 </div>
                 <div>
                   <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Unit</label>
@@ -174,23 +202,27 @@ export default function Inventory() {
                 </div>
                 <div>
                   <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Price (₹)</label>
-                  <input type="number" value={form.price} onChange={e => setForm({...form, price: e.target.value})} required className="w-full border border-gray-200 text-slate-700 text-sm rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" />
+                  <input type="number" value={form.price} onChange={e => setForm({...form, price: e.target.value})} className="w-full border border-gray-200 text-slate-700 text-sm rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" />
+                  {errors.price && <p className="text-red-500 text-xs mt-1">{errors.price}</p>}
                 </div>
                 <div>
                   <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Stock</label>
-                  <input type="number" value={form.stock} onChange={e => setForm({...form, stock: e.target.value})} required className="w-full border border-gray-200 text-slate-700 text-sm rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" />
+                  <input type="number" value={form.stock} onChange={e => setForm({...form, stock: e.target.value})} className="w-full border border-gray-200 text-slate-700 text-sm rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" />
+                  {errors.stock && <p className="text-red-500 text-xs mt-1">{errors.stock}</p>}
                 </div>
                 <div>
                   <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">MFG Date</label>
-                  <input type="date" value={form.mfgDate} onChange={e => setForm({...form, mfgDate: e.target.value})} required className="w-full border border-gray-200 text-slate-700 text-sm rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" />
+                  <input type="date" value={form.mfgDate} onChange={e => setForm({...form, mfgDate: e.target.value})} className="w-full border border-gray-200 text-slate-700 text-sm rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" />
+                  {errors.mfgDate && <p className="text-red-500 text-xs mt-1">{errors.mfgDate}</p>}
                 </div>
                 <div>
                   <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Exp Date</label>
-                  <input type="date" value={form.expDate} onChange={e => setForm({...form, expDate: e.target.value})} required className="w-full border border-gray-200 text-slate-700 text-sm rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" />
+                  <input type="date" value={form.expDate} onChange={e => setForm({...form, expDate: e.target.value})} className="w-full border border-gray-200 text-slate-700 text-sm rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" />
+                  {errors.expDate && <p className="text-red-500 text-xs mt-1">{errors.expDate}</p>}
                 </div>
               </div>
               <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
-                <button type="button" onClick={() => setShowModal(false)} className="px-5 py-2.5 text-sm font-semibold text-slate-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition">Cancel</button>
+                <button type="button" onClick={() => { setShowModal(false); setErrors({}); }} className="px-5 py-2.5 text-sm font-semibold text-slate-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition">Cancel</button>
                 <button type="submit" className="px-5 py-2.5 text-sm font-semibold text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 transition">{editIndex !== null ? 'Update' : 'Save'}</button>
               </div>
             </form>

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { loadData, saveData } from '../utils/storage';
 
 export default function Seller() {
   const [sellers, setSellers] = useState([]);
@@ -6,34 +7,57 @@ export default function Seller() {
   const [showModal, setShowModal] = useState(false);
   const [editId, setEditId] = useState(null);
   const [form, setForm] = useState({ name: '', contactPerson: '', phone: '', email: '', address: '', category: '', status: 'Active' });
+  const [errors, setErrors] = useState({});
 
   useEffect(() => {
-    fetch(`${import.meta.env.BASE_URL}data/sellers.json`).then(r => r.json()).then(setSellers);
+    loadData('sellers', 'sellers.json').then(setSellers);
   }, []);
 
   const filtered = sellers.filter(s =>
     [s.name, s.contactPerson, s.phone, s.email].some(v => v.toLowerCase().includes(search.toLowerCase()))
   );
 
+  const validateSeller = (f) => {
+    const errs = {};
+    if (!f.name.trim()) errs.name = 'Seller name is required';
+    if (!f.contactPerson.trim()) errs.contactPerson = 'Contact person is required';
+    if (!f.phone.trim()) errs.phone = 'Phone is required';
+    else if (!/^\d{10}$/.test(f.phone.replace(/\D/g, ''))) errs.phone = 'Enter a valid 10-digit phone number';
+    if (!f.email.trim()) errs.email = 'Email is required';
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(f.email)) errs.email = 'Enter a valid email address';
+    if (!f.category.trim()) errs.category = 'Category is required';
+    if (!f.address.trim()) errs.address = 'Address is required';
+    setErrors(errs);
+    return Object.keys(errs).length === 0;
+  };
+
   const handleEdit = (s) => {
     setForm(s);
     setEditId(s.id);
+    setErrors({});
     setShowModal(true);
   };
 
   const handleDelete = (id) => {
-    setSellers(prev => prev.filter(s => s.id !== id));
+    const updated = sellers.filter(s => s.id !== id);
+    setSellers(updated);
+    saveData('sellers', updated);
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    if (!validateSeller(form)) return;
+    let updated;
     if (editId) {
-      setSellers(prev => prev.map(s => s.id === editId ? { ...form, id: editId } : s));
+      updated = sellers.map(s => s.id === editId ? { ...form, id: editId } : s);
     } else {
-      setSellers(prev => [...prev, { ...form, id: Date.now() }]);
+      updated = [...sellers, { ...form, id: Date.now() }];
     }
+    setSellers(updated);
+    saveData('sellers', updated);
     setShowModal(false);
     setEditId(null);
+    setErrors({});
     setForm({ name: '', contactPerson: '', phone: '', email: '', address: '', category: '', status: 'Active' });
   };
 
@@ -49,7 +73,7 @@ export default function Seller() {
           <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
           <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by name, contact, phone or email..." className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 text-slate-700 text-sm rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" />
         </div>
-        <button onClick={() => { setEditId(null); setForm({ name: '', contactPerson: '', phone: '', email: '', address: '', category: '', status: 'Active' }); setShowModal(true); }} className="bg-emerald-600 text-white px-5 py-2.5 rounded-lg text-sm font-semibold hover:bg-emerald-700 transition flex items-center gap-2 whitespace-nowrap">
+        <button onClick={() => { setEditId(null); setErrors({}); setForm({ name: '', contactPerson: '', phone: '', email: '', address: '', category: '', status: 'Active' }); setShowModal(true); }} className="bg-emerald-600 text-white px-5 py-2.5 rounded-lg text-sm font-semibold hover:bg-emerald-700 transition flex items-center gap-2 whitespace-nowrap">
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" /></svg>
           Add Seller
         </button>
@@ -104,7 +128,7 @@ export default function Seller() {
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between p-6 border-b border-gray-100">
               <h3 className="text-lg font-bold text-slate-800">{editId ? 'Edit Seller' : 'Add Seller'}</h3>
-              <button onClick={() => setShowModal(false)} className="p-1 hover:bg-gray-100 rounded-lg transition">
+              <button onClick={() => { setShowModal(false); setErrors({}); }} className="p-1 hover:bg-gray-100 rounded-lg transition">
                 <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
               </button>
             </div>
@@ -112,23 +136,28 @@ export default function Seller() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Seller Name</label>
-                  <input value={form.name} onChange={e => setForm({...form, name: e.target.value})} required className="w-full border border-gray-200 text-slate-700 text-sm rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" />
+                  <input value={form.name} onChange={e => setForm({...form, name: e.target.value})} className="w-full border border-gray-200 text-slate-700 text-sm rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" />
+                  {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name}</p>}
                 </div>
                 <div>
                   <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Contact Person</label>
-                  <input value={form.contactPerson} onChange={e => setForm({...form, contactPerson: e.target.value})} required className="w-full border border-gray-200 text-slate-700 text-sm rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" />
+                  <input value={form.contactPerson} onChange={e => setForm({...form, contactPerson: e.target.value})} className="w-full border border-gray-200 text-slate-700 text-sm rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" />
+                  {errors.contactPerson && <p className="text-red-500 text-xs mt-1">{errors.contactPerson}</p>}
                 </div>
                 <div>
                   <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Phone</label>
-                  <input value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} required className="w-full border border-gray-200 text-slate-700 text-sm rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" />
+                  <input value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} className="w-full border border-gray-200 text-slate-700 text-sm rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" />
+                  {errors.phone && <p className="text-red-500 text-xs mt-1">{errors.phone}</p>}
                 </div>
                 <div>
                   <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Email</label>
-                  <input type="email" value={form.email} onChange={e => setForm({...form, email: e.target.value})} required className="w-full border border-gray-200 text-slate-700 text-sm rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" />
+                  <input type="email" value={form.email} onChange={e => setForm({...form, email: e.target.value})} className="w-full border border-gray-200 text-slate-700 text-sm rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" />
+                  {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
                 </div>
                 <div>
                   <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Category</label>
-                  <input value={form.category} onChange={e => setForm({...form, category: e.target.value})} required className="w-full border border-gray-200 text-slate-700 text-sm rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" />
+                  <input value={form.category} onChange={e => setForm({...form, category: e.target.value})} className="w-full border border-gray-200 text-slate-700 text-sm rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" />
+                  {errors.category && <p className="text-red-500 text-xs mt-1">{errors.category}</p>}
                 </div>
                 <div>
                   <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Status</label>
@@ -139,11 +168,12 @@ export default function Seller() {
                 </div>
                 <div className="sm:col-span-2">
                   <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Address</label>
-                  <textarea value={form.address} onChange={e => setForm({...form, address: e.target.value})} rows={2} required className="w-full border border-gray-200 text-slate-700 text-sm rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" />
+                  <textarea value={form.address} onChange={e => setForm({...form, address: e.target.value})} rows={2} className="w-full border border-gray-200 text-slate-700 text-sm rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" />
+                  {errors.address && <p className="text-red-500 text-xs mt-1">{errors.address}</p>}
                 </div>
               </div>
               <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
-                <button type="button" onClick={() => setShowModal(false)} className="px-5 py-2.5 text-sm font-semibold text-slate-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition">Cancel</button>
+                <button type="button" onClick={() => { setShowModal(false); setErrors({}); }} className="px-5 py-2.5 text-sm font-semibold text-slate-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition">Cancel</button>
                 <button type="submit" className="px-5 py-2.5 text-sm font-semibold text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 transition">{editId ? 'Update' : 'Save'}</button>
               </div>
             </form>
