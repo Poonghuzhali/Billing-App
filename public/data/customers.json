@@ -1,0 +1,23 @@
+[
+  {
+    "id": 1,
+    "name": "Rajesh Kumar",
+    "phone": "9876543210",
+    "email": "rajesh@email.com",
+    "address": "12, Main Street, Chennai"
+  },
+  {
+    "id": 2,
+    "name": "Priya Sharma",
+    "phone": "9876543211",
+    "email": "priya@email.com",
+    "address": "45, Park Avenue, Bangalore"
+  },
+  {
+    "id": 3,
+    "name": "Amit Patel",
+    "phone": "9876543212",
+    "email": "amit@email.com",
+    "address": "78, Lake View Road, Mumbai"
+  }
+]

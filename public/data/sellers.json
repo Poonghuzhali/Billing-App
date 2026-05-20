@@ -1,0 +1,32 @@
+[
+  {
+    "id": 1,
+    "name": "Fresh Foods Supply Co.",
+    "contactPerson": "Suresh Reddy",
+    "phone": "9988776655",
+    "email": "suresh@freshfoods.com",
+    "address": "123, Industrial Area, Chennai",
+    "category": "Groceries",
+    "status": "Active"
+  },
+  {
+    "id": 2,
+    "name": "Daily Needs Distributors",
+    "contactPerson": "Meena Devi",
+    "phone": "9988776654",
+    "email": "meena@dailyneeds.com",
+    "address": "456, Market Road, Bangalore",
+    "category": "Personal Care",
+    "status": "Active"
+  },
+  {
+    "id": 3,
+    "name": "Organic Harvest Pvt Ltd",
+    "contactPerson": "Vikram Singh",
+    "phone": "9988776653",
+    "email": "vikram@organicharvest.com",
+    "address": "789, Green Fields, Pune",
+    "category": "Grains",
+    "status": "Inactive"
+  }
+]

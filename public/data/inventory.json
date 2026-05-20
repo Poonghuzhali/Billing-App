@@ -1,0 +1,72 @@
+[
+  {
+    "id": 1,
+    "name": "Basmati Rice",
+    "sku": "SKU-001",
+    "barcode": "8901234567890",
+    "invoiceNumber": "INV-2026-001",
+    "gst": "5%",
+    "mfgDate": "2026-01-15",
+    "expDate": "2027-01-14",
+    "price": 85,
+    "stock": 200,
+    "category": "Grains",
+    "unit": "KG"
+  },
+  {
+    "id": 2,
+    "name": "Sunflower Oil",
+    "sku": "SKU-002",
+    "barcode": "8901234567891",
+    "invoiceNumber": "INV-2026-001",
+    "gst": "5%",
+    "mfgDate": "2026-02-01",
+    "expDate": "2027-02-01",
+    "price": 180,
+    "stock": 50,
+    "category": "Oils",
+    "unit": "Litre"
+  },
+  {
+    "id": 3,
+    "name": "Wheat Flour",
+    "sku": "SKU-003",
+    "barcode": "8901234567892",
+    "invoiceNumber": "INV-2026-002",
+    "gst": "0%",
+    "mfgDate": "2026-03-01",
+    "expDate": "2026-12-31",
+    "price": 35,
+    "stock": 150,
+    "category": "Grains",
+    "unit": "KG"
+  },
+  {
+    "id": 4,
+    "name": "Sugar",
+    "sku": "SKU-004",
+    "barcode": "8901234567893",
+    "invoiceNumber": "INV-2026-002",
+    "gst": "0%",
+    "mfgDate": "2026-02-15",
+    "expDate": "2027-02-14",
+    "price": 42,
+    "stock": 300,
+    "category": "Groceries",
+    "unit": "KG"
+  },
+  {
+    "id": 5,
+    "name": "Toothpaste",
+    "sku": "SKU-005",
+    "barcode": "8901234567894",
+    "invoiceNumber": "INV-2026-003",
+    "gst": "18%",
+    "mfgDate": "2026-01-10",
+    "expDate": "2027-01-09",
+    "price": 85,
+    "stock": 80,
+    "category": "Personal Care",
+    "unit": "Pieces"
+  }
+]
