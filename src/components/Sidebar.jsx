@@ -1,12 +1,12 @@
 import { NavLink } from 'react-router-dom';
 
 const links = [
-  { to: '/dashboard', label: 'Dashboard', icon: '📊' },
+  { to: '/', label: 'Dashboard', icon: '📊', end: true },
   { to: '/billing', label: 'Billing', icon: '🧾' },
   { to: '/bills', label: 'Bills', icon: '📄' },
-  { to: '/customer', label: 'Customer', icon: '👤' },
+  { to: '/customers', label: 'Customer', icon: '👤' },
   { to: '/inventory', label: 'Inventory', icon: '📦' },
-  { to: '/seller', label: 'Seller', icon: '🏪' },
+  { to: '/sellers', label: 'Seller', icon: '🏪' },
 ];
 
 export default function Sidebar({ isOpen, onClose }) {
@@ -36,6 +36,7 @@ export default function Sidebar({ isOpen, onClose }) {
             <NavLink
               key={link.to}
               to={link.to}
+              end={link.end}
               onClick={onClose}
               className={({ isActive }) =>
                 `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition ${
