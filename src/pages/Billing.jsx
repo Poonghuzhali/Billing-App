@@ -11,6 +11,10 @@ export default function Billing() {
   const [customerName, setCustomerName] = useState('');
   const [lastScan, setLastScan] = useState(null);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [customerSearch, setCustomerSearch] = useState('');
+  const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
+  const [showAddCustomerModal, setShowAddCustomerModal] = useState(false);
+  const [newCustomer, setNewCustomer] = useState({ name: '', phone: '', email: '', address: '' });
   const scanInputRef = useRef(null);
   const scanBuffer = useRef('');
 
@@ -135,6 +139,20 @@ export default function Billing() {
 
   const paymentMethods = ['Cash', 'UPI', 'Card', 'Credit'];
 
+  const customerFiltered = customers.filter(c =>
+    [c.name, c.phone].some(v => v.toLowerCase().includes(customerSearch.toLowerCase()))
+  );
+
+  const handleAddCustomer = () => {
+    if (!newCustomer.name || !newCustomer.phone) return;
+    const added = { ...newCustomer, id: Date.now() };
+    setCustomers(prev => [...prev, added]);
+    setCustomerName(added.name);
+    setCustomerSearch(added.name);
+    setShowAddCustomerModal(false);
+    setNewCustomer({ name: '', phone: '', email: '', address: '' });
+  };
+
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto">
       <div className="mb-8">
@@ -196,11 +214,41 @@ export default function Billing() {
 
         <div className="space-y-4">
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-            <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-4">Customer</h3>
-            <select value={customerName} onChange={e => setCustomerName(e.target.value)} className="w-full border border-gray-200 text-slate-700 text-sm rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500">
-              <option value="">Walk-in Customer</option>
-              {customers.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
-            </select>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider">Customer</h3>
+              <button onClick={() => setShowAddCustomerModal(true)} className="text-xs font-semibold text-emerald-600 hover:text-emerald-700 flex items-center gap-1 transition">
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" /></svg>
+                Add Customer
+              </button>
+            </div>
+            <div className="relative" onBlur={() => setTimeout(() => setShowCustomerDropdown(false), 200)}>
+              <input
+                type="text"
+                value={customerSearch}
+                onChange={e => { setCustomerSearch(e.target.value); setShowCustomerDropdown(true); }}
+                onFocus={() => setShowCustomerDropdown(true)}
+                placeholder="Search by name or phone..."
+                className="w-full border border-gray-200 text-slate-700 text-sm rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+              />
+              {showCustomerDropdown && customerSearch && (
+                <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-10 max-h-48 overflow-y-auto">
+                  {customerFiltered.length === 0 ? (
+                    <p className="p-3 text-sm text-slate-400">No customers found.</p>
+                  ) : (
+                    customerFiltered.map(c => (
+                      <button
+                        key={c.id}
+                        onMouseDown={() => { setCustomerName(c.name); setCustomerSearch(c.name); setShowCustomerDropdown(false); }}
+                        className="w-full text-left p-3 hover:bg-gray-50 text-sm border-b border-gray-100 last:border-0"
+                      >
+                        <span className="font-medium text-slate-800">{c.name}</span>
+                        <span className="text-slate-500 ml-2">{c.phone}</span>
+                      </button>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
@@ -245,6 +293,37 @@ export default function Billing() {
           </div>
         </div>
       </div>
+
+      {showAddCustomerModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg font-bold text-slate-800">Add Customer</h3>
+              <button onClick={() => setShowAddCustomerModal(false)} className="p-1 hover:bg-gray-100 rounded-lg transition">
+                <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Name</label>
+                <input value={newCustomer.name} onChange={e => setNewCustomer({...newCustomer, name: e.target.value})} className="w-full border border-gray-200 text-slate-700 text-sm rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Phone</label>
+                <input value={newCustomer.phone} onChange={e => setNewCustomer({...newCustomer, phone: e.target.value})} className="w-full border border-gray-200 text-slate-700 text-sm rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Email</label>
+                <input value={newCustomer.email} onChange={e => setNewCustomer({...newCustomer, email: e.target.value})} className="w-full border border-gray-200 text-slate-700 text-sm rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" />
+              </div>
+              <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
+                <button onClick={() => setShowAddCustomerModal(false)} className="px-5 py-2.5 text-sm font-semibold text-slate-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition">Cancel</button>
+                <button onClick={handleAddCustomer} className="px-5 py-2.5 text-sm font-semibold text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 transition">Add</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showPaymentModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
