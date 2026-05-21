@@ -54,11 +54,13 @@ export default function Invoices() {
     if (selected?.id === id) setSelected(null);
   };
 
-  const handleDownloadPDF = (inv) => {
+  const handleDownloadPDF = async (inv) => {
     let s = shop;
     if (!s || !s.name) {
       try { const x = localStorage.getItem('billing_shop'); if (x) s = JSON.parse(x); } catch (e) {}
     }
+    const invNum = inv.invoiceNumber || inv.billNumber;
+
     const itemsHtml = inv.items.map(item => `
       <tr>
         <td style="padding:7px 8px;border-bottom:1px solid #e5e7eb;font-size:12px">${item.productName}</td>
@@ -68,46 +70,86 @@ export default function Invoices() {
       </tr>
     `).join('');
 
-    const invNum = inv.invoiceNumber || inv.billNumber;
-    const w = window.open('', '_blank');
-    if (!w) return;
-    w.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Invoice ' + invNum + '</title>');
-    w.document.write('<style>');
-    w.document.write('@page{margin:8mm}');
-    w.document.write('body{font-family:"Segoe UI",Arial,sans-serif;margin:0;padding:24px;color:#1e293b;font-size:13px}');
-    w.document.write('.hdr{border-bottom:2px solid #059669;padding-bottom:12px;margin-bottom:14px}');
-    w.document.write('.hdr h1{font-size:20px;color:#059669;margin:0 0 2px}');
-    w.document.write('.hdr p{font-size:11px;color:#475569;margin:1px 0}');
-    w.document.write('.meta{display:flex;justify-content:space-between;margin-bottom:16px;font-size:12px}');
-    w.document.write('.lbl{font-size:9px;text-transform:uppercase;color:#64748b;letter-spacing:0.5px;margin-bottom:2px}');
-    w.document.write('.cst{margin-bottom:16px;font-size:12px}');
-    w.document.write('table{width:100%;border-collapse:collapse;margin-bottom:14px}');
-    w.document.write('th{background:#f1f5f9;padding:6px 8px;font-size:9px;text-transform:uppercase;letter-spacing:0.8px;color:#64748b;text-align:left}');
-    w.document.write('th:nth-child(2),td:nth-child(2){text-align:center}');
-    w.document.write('th:nth-child(3),td:nth-child(3){text-align:right}');
-    w.document.write('th:nth-child(4),td:nth-child(4){text-align:right}');
-    w.document.write('td{padding:6px 8px;border-bottom:1px solid #e5e7eb;font-size:12px}');
-    w.document.write('.sum{width:260px;margin-left:auto}');
-    w.document.write('.sum>div{display:flex;justify-content:space-between;padding:3px 0;font-size:12px}');
-    w.document.write('.sum .gt{font-size:14px;font-weight:bold;border-top:2px solid #059669;padding-top:6px;color:#059669}');
-    w.document.write('.ftr{text-align:center;font-size:10px;color:#94a3b8;margin-top:24px;border-top:1px solid #e5e7eb;padding-top:12px}');
-    w.document.write('@media print{body{print-color-adjust:exact;-webkit-print-color-adjust:exact}}');
-    w.document.write('</style></head><body>');
-    w.document.write('<div class="hdr"><h1>' + (s && s.name ? s.name : 'BillingApp') + '</h1>');
-    if (s && s.contactPerson) w.document.write('<p>Contact: ' + s.contactPerson + '</p>');
-    if (s && s.phone) w.document.write('<p>Phone: ' + s.phone + '</p>');
-    if (s && s.address) w.document.write('<p>' + s.address + '</p>');
-    w.document.write('</div>');
-    w.document.write('<div class="meta"><div><div class="lbl">Invoice</div>' + invNum + '<br><span style="color:#64748b;font-size:11px">' + inv.date + '</span></div><div style="text-align:right"><div class="lbl">Bill No</div>' + inv.billNumber + '</div></div>');
-    w.document.write('<div class="cst"><div class="lbl">Bill To</div>' + inv.customerName + '<br>');
-    if (inv.customerPhone) w.document.write('<span style="color:#475569">Phone: ' + inv.customerPhone + '</span>');
-    w.document.write('</div>');
-    w.document.write('<table><thead><tr><th>Product</th><th>Qty</th><th>Price</th><th>Total</th></tr></thead><tbody>' + itemsHtml + '</tbody></table>');
-    w.document.write('<div class="sum"><div><span>Subtotal</span><span>' + Number(inv.subtotal).toFixed(2) + '</span></div><div><span>GST</span><span>' + Number(inv.gst).toFixed(2) + '</span></div><div class="gt"><span>Grand Total</span><span>' + Number(inv.grandTotal).toFixed(2) + '</span></div></div>');
-    w.document.write('<div class="ftr">Thank you for your business!</div>');
-    w.document.write('<script>window.onload=function(){setTimeout(function(){window.print()},300)}<\/script>');
-    w.document.write('</body></html>');
-    w.document.close();
+    const content = `
+      <div style="font-family:'Segoe UI',Arial,sans-serif;padding:30px;color:#1e293b;background:#fff;width:720px">
+        <div style="border-bottom:2px solid #059669;padding-bottom:12px;margin-bottom:14px">
+          <h1 style="font-size:20px;color:#059669;margin:0">${s && s.name ? s.name : 'BillingApp'}</h1>
+          ${s && s.contactPerson ? `<p style="font-size:11px;color:#475569;margin:2px 0">Contact: ${s.contactPerson}</p>` : ''}
+          ${s && s.phone ? `<p style="font-size:11px;color:#475569;margin:2px 0">Phone: ${s.phone}</p>` : ''}
+          ${s && s.address ? `<p style="font-size:11px;color:#475569;margin:2px 0">${s.address}</p>` : ''}
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:16px;font-size:12px">
+          <div><div style="font-size:10px;text-transform:uppercase;color:#64748b;letter-spacing:0.5px;margin-bottom:3px">Invoice</div>${invNum}<br><span style="color:#64748b;font-size:11px">${inv.date}</span></div>
+          <div style="text-align:right"><div style="font-size:10px;text-transform:uppercase;color:#64748b;letter-spacing:0.5px;margin-bottom:3px">Bill No</div>${inv.billNumber}</div>
+        </div>
+        <div style="margin-bottom:16px;font-size:12px">
+          <div style="font-size:10px;text-transform:uppercase;color:#64748b;letter-spacing:0.5px;margin-bottom:3px">Bill To</div>
+          ${inv.customerName}<br>
+          ${inv.customerPhone ? `<span style="color:#475569">Phone: ${inv.customerPhone}</span>` : ''}
+        </div>
+        <table style="width:100%;border-collapse:collapse;margin-bottom:14px">
+          <thead>
+            <tr style="background:#f1f5f9">
+              <th style="padding:7px 8px;font-size:10px;text-transform:uppercase;letter-spacing:0.8px;color:#64748b;text-align:left">Product</th>
+              <th style="padding:7px 8px;font-size:10px;text-transform:uppercase;letter-spacing:0.8px;color:#64748b;text-align:center">Qty</th>
+              <th style="padding:7px 8px;font-size:10px;text-transform:uppercase;letter-spacing:0.8px;color:#64748b;text-align:right">Price</th>
+              <th style="padding:7px 8px;font-size:10px;text-transform:uppercase;letter-spacing:0.8px;color:#64748b;text-align:right">Total</th>
+            </tr>
+          </thead>
+          <tbody>${itemsHtml}</tbody>
+        </table>
+        <div style="width:260px;margin-left:auto">
+          <div style="display:flex;justify-content:space-between;padding:4px 0;font-size:12px"><span>Subtotal</span><span>${Number(inv.subtotal).toFixed(2)}</span></div>
+          <div style="display:flex;justify-content:space-between;padding:4px 0;font-size:12px"><span>GST</span><span>${Number(inv.gst).toFixed(2)}</span></div>
+          <div style="display:flex;justify-content:space-between;padding:6px 0 0;font-size:15px;font-weight:bold;border-top:2px solid #059669;color:#059669"><span>Grand Total</span><span>${Number(inv.grandTotal).toFixed(2)}</span></div>
+        </div>
+        <div style="text-align:center;font-size:10px;color:#94a3b8;margin-top:24px;border-top:1px solid #e5e7eb;padding-top:12px">Thank you for your business!</div>
+      </div>
+    `;
+
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'fixed';
+    iframe.style.left = '-9999px';
+    iframe.style.top = '0';
+    iframe.style.width = '750px';
+    iframe.style.height = '1px';
+    iframe.style.border = 'none';
+    document.body.appendChild(iframe);
+
+    const doc = iframe.contentDocument;
+    doc.open();
+    doc.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body{margin:0;padding:0}</style></head><body>' + content + '</body></html>');
+    doc.close();
+
+    try {
+      await new Promise(r => setTimeout(r, 300));
+      const [html2canvasMod, jsPDFMod] = await Promise.all([
+        import('html2canvas'),
+        import('jspdf'),
+      ]);
+      const html2canvas = html2canvasMod.default;
+      const jsPDF = jsPDFMod.default;
+
+      const body = iframe.contentDocument.body;
+      body.style.display = 'inline-block';
+      const canvas = await html2canvas(body, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
+      const imgData = canvas.toDataURL('image/jpeg', 0.95);
+      const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
+      const pw = pdf.internal.pageSize.getWidth();
+      const ph = (canvas.height * pw) / canvas.width;
+      pdf.addImage(imgData, 'JPEG', 0, 0, pw, ph);
+      let rest = ph - pdf.internal.pageSize.getHeight();
+      while (rest > 0) {
+        pdf.addPage();
+        pdf.addImage(imgData, 'JPEG', 0, rest - ph, pw, ph);
+        rest -= pdf.internal.pageSize.getHeight();
+      }
+      pdf.save(`Invoice-${invNum}.pdf`);
+    } catch (err) {
+      alert('PDF Error: ' + err.message);
+    } finally {
+      if (document.body.contains(iframe)) document.body.removeChild(iframe);
+    }
   };
 
   return (

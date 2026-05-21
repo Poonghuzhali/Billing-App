@@ -75,7 +75,7 @@ export default function Dashboard() {
     },
   };
 
-  const pieColors = ['#0c4a6e', '#0369a1', '#0284c7', '#0ea5e9', '#38bdf8', '#7dd3fc'];
+  const pieColors = ['#fbbf24', '#34d399', '#60a5fa', '#f472b6', '#a78bfa', '#fb923c'];
   const pieChartData = {
     labels: Object.keys(categoryStock),
     datasets: [

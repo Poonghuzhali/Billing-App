@@ -119,6 +119,22 @@ export default function Billing() {
   }, 0);
   const grandTotal = subtotal + gstAmount;
 
+  const reduceInventoryStock = (cartItems) => {
+    const stored = localStorage.getItem('billing_inventory');
+    if (!stored) return;
+    try {
+      const inventory = JSON.parse(stored);
+      cartItems.forEach(item => {
+        const idx = inventory.findIndex(p => p.id === item.id);
+        if (idx >= 0) {
+          inventory[idx].stock = Math.max(0, inventory[idx].stock - item.quantity);
+        }
+      });
+      localStorage.setItem('billing_inventory', JSON.stringify(inventory));
+      setProducts(inventory);
+    } catch (e) {}
+  };
+
   const nextSequence = () => {
     const now = new Date();
     const y = now.getFullYear();
@@ -165,6 +181,7 @@ export default function Billing() {
     const updated = [...bills, newBill];
     setBills(updated);
     saveData('bills', updated);
+    reduceInventoryStock(cart);
     setCart([]);
     clearCart();
     setCustomerName('');
@@ -172,6 +189,136 @@ export default function Billing() {
     setCustomerSearch('');
     setShowPaymentModal(false);
     alert(`Invoice ${newBill.invoiceNumber} generated successfully!`);
+  };
+
+  const handleSaveBill = () => {
+    if (!customerName) { setBillError('Please select a customer'); return; }
+    if (cart.length === 0) { setBillError('Add at least one item to the cart'); return; }
+    setBillError('');
+    const newBill = {
+      id: Date.now(),
+      billNumber: generateBillNumber(),
+      invoiceNumber: generateInvoiceNumber(),
+      customerName,
+      customerPhone,
+      date: new Date().toISOString().split('T')[0],
+      items: cart.map(item => ({
+        productName: item.name,
+        quantity: item.quantity,
+        price: item.price,
+        total: item.price * item.quantity
+      })),
+      subtotal,
+      gst: gstAmount,
+      grandTotal,
+      shop: shop ? { ...shop } : null
+    };
+    const updated = [...bills, newBill];
+    setBills(updated);
+    saveData('bills', updated);
+    reduceInventoryStock(cart);
+    setCart([]);
+    clearCart();
+    setCustomerName('');
+    setCustomerPhone('');
+    setCustomerSearch('');
+    alert(`Invoice ${newBill.invoiceNumber} saved!`);
+  };
+
+  const handlePrintBill = async () => {
+    if (!customerName) { setBillError('Please select a customer'); return; }
+    if (cart.length === 0) { setBillError('Add at least one item to the cart'); return; }
+    setBillError('');
+    const today = new Date().toISOString().split('T')[0];
+    const invNum = (() => { const { year, seq } = nextSequence(); return `INV-${year}-${String(seq).padStart(4, '0')}`; })();
+    const itemsHtml = cart.map(item => `
+      <tr>
+        <td style="padding:7px 8px;border-bottom:1px solid #e5e7eb;font-size:12px">${item.name}</td>
+        <td style="padding:7px 8px;border-bottom:1px solid #e5e7eb;font-size:12px;text-align:center">${item.quantity}</td>
+        <td style="padding:7px 8px;border-bottom:1px solid #e5e7eb;font-size:12px;text-align:right">${Number(item.price).toFixed(2)}</td>
+        <td style="padding:7px 8px;border-bottom:1px solid #e5e7eb;font-size:12px;text-align:right">${(item.price * item.quantity).toFixed(2)}</td>
+      </tr>
+    `).join('');
+
+    const content = `
+      <div style="font-family:'Segoe UI',Arial,sans-serif;padding:30px;color:#1e293b;background:#fff;width:720px">
+        <div style="border-bottom:2px solid #059669;padding-bottom:12px;margin-bottom:14px">
+          <h1 style="font-size:20px;color:#059669;margin:0">${shop && shop.name ? shop.name : 'BillingApp'}</h1>
+          ${shop && shop.contactPerson ? `<p style="font-size:11px;color:#475569;margin:2px 0">Contact: ${shop.contactPerson}</p>` : ''}
+          ${shop && shop.phone ? `<p style="font-size:11px;color:#475569;margin:2px 0">Phone: ${shop.phone}</p>` : ''}
+          ${shop && shop.address ? `<p style="font-size:11px;color:#475569;margin:2px 0">${shop.address}</p>` : ''}
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:16px;font-size:12px">
+          <div><div style="font-size:10px;text-transform:uppercase;color:#64748b;letter-spacing:0.5px;margin-bottom:3px">Invoice</div>${invNum}<br><span style="color:#64748b;font-size:11px">${today}</span></div>
+        </div>
+        <div style="margin-bottom:16px;font-size:12px">
+          <div style="font-size:10px;text-transform:uppercase;color:#64748b;letter-spacing:0.5px;margin-bottom:3px">Bill To</div>
+          ${customerName}<br>
+          ${customerPhone ? `<span style="color:#475569">Phone: ${customerPhone}</span>` : ''}
+        </div>
+        <table style="width:100%;border-collapse:collapse;margin-bottom:14px">
+          <thead>
+            <tr style="background:#f1f5f9">
+              <th style="padding:7px 8px;font-size:10px;text-transform:uppercase;letter-spacing:0.8px;color:#64748b;text-align:left">Product</th>
+              <th style="padding:7px 8px;font-size:10px;text-transform:uppercase;letter-spacing:0.8px;color:#64748b;text-align:center">Qty</th>
+              <th style="padding:7px 8px;font-size:10px;text-transform:uppercase;letter-spacing:0.8px;color:#64748b;text-align:right">Price</th>
+              <th style="padding:7px 8px;font-size:10px;text-transform:uppercase;letter-spacing:0.8px;color:#64748b;text-align:right">Total</th>
+            </tr>
+          </thead>
+          <tbody>${itemsHtml}</tbody>
+        </table>
+        <div style="width:260px;margin-left:auto">
+          <div style="display:flex;justify-content:space-between;padding:4px 0;font-size:12px"><span>Subtotal</span><span>${subtotal.toFixed(2)}</span></div>
+          <div style="display:flex;justify-content:space-between;padding:4px 0;font-size:12px"><span>GST</span><span>${gstAmount.toFixed(2)}</span></div>
+          <div style="display:flex;justify-content:space-between;padding:6px 0 0;font-size:15px;font-weight:bold;border-top:2px solid #059669;color:#059669"><span>Grand Total</span><span>${grandTotal.toFixed(2)}</span></div>
+        </div>
+        <div style="text-align:center;font-size:10px;color:#94a3b8;margin-top:24px;border-top:1px solid #e5e7eb;padding-top:12px">Thank you for your business!</div>
+      </div>
+    `;
+
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'fixed';
+    iframe.style.left = '-9999px';
+    iframe.style.top = '0';
+    iframe.style.width = '750px';
+    iframe.style.height = '1px';
+    iframe.style.border = 'none';
+    document.body.appendChild(iframe);
+
+    const doc = iframe.contentDocument;
+    doc.open();
+    doc.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body{margin:0;padding:0}</style></head><body>' + content + '</body></html>');
+    doc.close();
+
+    try {
+      await new Promise(r => setTimeout(r, 300));
+      const [html2canvasMod, jsPDFMod] = await Promise.all([
+        import('html2canvas'),
+        import('jspdf'),
+      ]);
+      const html2canvas = html2canvasMod.default;
+      const jsPDF = jsPDFMod.default;
+
+      const body = iframe.contentDocument.body;
+      body.style.display = 'inline-block';
+      const canvas = await html2canvas(body, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
+      const imgData = canvas.toDataURL('image/jpeg', 0.95);
+      const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
+      const pw = pdf.internal.pageSize.getWidth();
+      const ph = (canvas.height * pw) / canvas.width;
+      pdf.addImage(imgData, 'JPEG', 0, 0, pw, ph);
+      let rest = ph - pdf.internal.pageSize.getHeight();
+      while (rest > 0) {
+        pdf.addPage();
+        pdf.addImage(imgData, 'JPEG', 0, rest - ph, pw, ph);
+        rest -= pdf.internal.pageSize.getHeight();
+      }
+      pdf.save(`Bill-${invNum}.pdf`);
+    } catch (err) {
+      alert('PDF Error: ' + err.message);
+    } finally {
+      if (document.body.contains(iframe)) document.body.removeChild(iframe);
+    }
   };
 
   const paymentMethods = ['Cash', 'UPI', 'Card', 'Credit'];
@@ -307,6 +454,23 @@ export default function Billing() {
 
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
             <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Current Bill</h3>
+
+            {shop && shop.name && (
+              <div className="mb-3 p-2.5 bg-emerald-50 border border-emerald-200 rounded-lg text-xs space-y-0.5">
+                <p className="font-bold text-emerald-800">{shop.name}</p>
+                {shop.contactPerson && <p className="text-emerald-700">Contact: {shop.contactPerson}</p>}
+                {shop.phone && <p className="text-emerald-700">Phone: {shop.phone}</p>}
+                {shop.address && <p className="text-emerald-700">{shop.address}</p>}
+              </div>
+            )}
+
+            {customerName && (
+              <div className="mb-3 p-2.5 bg-blue-50 border border-blue-200 rounded-lg text-xs">
+                <p className="font-medium text-blue-800">{customerName}</p>
+                {customerPhone && <p className="text-blue-600">Phone: {customerPhone}</p>}
+              </div>
+            )}
+
             {cart.length === 0 ? (
               <p className="text-slate-500 text-xs text-center py-3">No items added.</p>
             ) : (
@@ -337,7 +501,23 @@ export default function Billing() {
               </div>
             </div>
             {billError && <p className="text-red-500 text-[10px] mt-1 text-center">{billError}</p>}
-            <button onClick={() => { setBillError(''); if (cart.length > 0 && customerName) setShowPaymentModal(true); else if (!customerName) setBillError('Please select a customer'); else setBillError('Add at least one item to the cart'); }} className="w-full mt-3 bg-emerald-600 text-white px-4 py-1.5 rounded-lg text-xs font-semibold hover:bg-emerald-700 transition">Generate Bill</button>
+
+            <div className="mt-3 flex gap-2">
+              <button
+                onClick={handleSaveBill}
+                className="flex-1 bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-emerald-700 transition flex items-center justify-center gap-1.5"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" /></svg>
+                Generate & Save Bill
+              </button>
+              <button
+                onClick={handlePrintBill}
+                className="flex-1 bg-blue-600 text-white px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-blue-700 transition flex items-center justify-center gap-1.5"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
+                Print Bill
+              </button>
+            </div>
           </div>
         </div>
       </div>
