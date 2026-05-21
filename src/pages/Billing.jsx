@@ -1,15 +1,17 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import CameraScanner from '../components/CameraScanner';
 import { loadData, saveData } from '../utils/storage';
+import { getCart, saveCart, clearCart } from '../utils/cart';
 
 export default function Billing() {
   const [products, setProducts] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [bills, setBills] = useState([]);
-  const [search, setSearch] = useState('');
   const [scannedBarcode, setScannedBarcode] = useState('');
   const [cart, setCart] = useState([]);
   const [customerName, setCustomerName] = useState('');
+  const [customerPhone, setCustomerPhone] = useState('');
+  const [shop, setShop] = useState(null);
   const [lastScan, setLastScan] = useState(null);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [customerSearch, setCustomerSearch] = useState('');
@@ -25,17 +27,24 @@ export default function Billing() {
     loadData('inventory', 'inventory.json').then(setProducts);
     loadData('customers', 'customers.json').then(setCustomers);
     loadData('bills', 'bills.json').then(setBills);
+    setCart(getCart());
+    const storedShop = localStorage.getItem('billing_shop');
+    if (storedShop) {
+      try { setShop(JSON.parse(storedShop)); } catch (e) {}
+    }
   }, []);
 
   const addToCart = useCallback((product) => {
     setCart(prev => {
-      const existing = prev.find(item => item.id === product.id);
-      if (existing) {
-        return prev.map(item =>
-          item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item
-        );
+      const updated = [...prev];
+      const idx = updated.findIndex(item => item.id === product.id);
+      if (idx >= 0) {
+        updated[idx].quantity += 1;
+      } else {
+        updated.push({ ...product, quantity: 1 });
       }
-      return [...prev, { ...product, quantity: 1 }];
+      saveCart(updated);
+      return updated;
     });
   }, []);
 
@@ -68,10 +77,6 @@ export default function Billing() {
     };
   }, [products, addToCart]);
 
-  const filtered = products.filter(p =>
-    [p.name, p.sku, p.barcode].some(v => v.toLowerCase().includes(search.toLowerCase()))
-  );
-
   const handleManualBarcode = () => {
     const found = products.find(p => p.barcode === scannedBarcode);
     if (found) {
@@ -94,13 +99,17 @@ export default function Billing() {
   }, [products, addToCart]);
 
   const removeFromCart = (id) => {
-    setCart(prev => prev.filter(item => item.id !== id));
+    const updated = cart.filter(item => item.id !== id);
+    setCart(updated);
+    saveCart(updated);
   };
 
   const updateQty = (id, delta) => {
-    setCart(prev => prev.map(item =>
+    const updated = cart.map(item =>
       item.id === id ? { ...item, quantity: Math.max(1, item.quantity + delta) } : item
-    ));
+    );
+    setCart(updated);
+    saveCart(updated);
   };
 
   const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
@@ -110,10 +119,25 @@ export default function Billing() {
   }, 0);
   const grandTotal = subtotal + gstAmount;
 
-  const generateBillNumber = () => {
-    const count = bills.length + 1;
+  const nextSequence = () => {
     const now = new Date();
-    return `BILL-${now.getFullYear()}-${String(count).padStart(3, '0')}`;
+    const y = now.getFullYear();
+    const existing = bills
+      .filter(b => b.billNumber && b.billNumber.startsWith(`BILL-${y}-`))
+      .map(b => parseInt(b.billNumber.replace(`BILL-${y}-`, ''), 10))
+      .filter(n => !isNaN(n));
+    const next = existing.length > 0 ? Math.max(...existing) + 1 : 1;
+    return { year: y, seq: next };
+  };
+
+  const generateBillNumber = () => {
+    const { year, seq } = nextSequence();
+    return `BILL-${year}-${String(seq).padStart(4, '0')}`;
+  };
+
+  const generateInvoiceNumber = () => {
+    const { year, seq } = nextSequence();
+    return `INV-${year}-${String(seq).padStart(4, '0')}`;
   };
 
   const handleGenerateBill = () => {
@@ -123,7 +147,9 @@ export default function Billing() {
     const newBill = {
       id: Date.now(),
       billNumber: generateBillNumber(),
+      invoiceNumber: generateInvoiceNumber(),
       customerName,
+      customerPhone,
       date: new Date().toISOString().split('T')[0],
       items: cart.map(item => ({
         productName: item.name,
@@ -133,16 +159,19 @@ export default function Billing() {
       })),
       subtotal,
       gst: gstAmount,
-      grandTotal
+      grandTotal,
+      shop: shop ? { ...shop } : null
     };
     const updated = [...bills, newBill];
     setBills(updated);
     saveData('bills', updated);
     setCart([]);
+    clearCart();
     setCustomerName('');
+    setCustomerPhone('');
     setCustomerSearch('');
     setShowPaymentModal(false);
-    alert(`Bill ${newBill.billNumber} generated successfully!`);
+    alert(`Invoice ${newBill.invoiceNumber} generated successfully!`);
   };
 
   const paymentMethods = ['Cash', 'UPI', 'Card', 'Credit'];
@@ -176,19 +205,19 @@ export default function Billing() {
   };
 
   return (
-    <div className="p-4 md:p-8 max-w-7xl mx-auto">
-      <div className="mb-8">
-        <h2 className="text-2xl font-bold text-slate-800">Billing</h2>
+    <div className="p-3 md:p-6 max-w-7xl mx-auto">
+      <div className="mb-4">
+        <h2 className="text-lg font-bold text-slate-800">Billing</h2>
         <p className="text-slate-500">Scan products and generate bills.</p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-6">
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-            <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-4">Scan Barcode</h3>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="lg:col-span-2 space-y-4">
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
+            <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Scan Barcode</h3>
             {lastScan && (
-              <div className="mb-3 px-3 py-2 bg-emerald-100 text-emerald-800 rounded-lg text-sm font-semibold animate-pulse">
-                ✓ {lastScan} added to cart
+              <div className="mb-2 px-3 py-1.5 bg-emerald-100 text-emerald-800 rounded-lg text-xs font-semibold animate-pulse">
+                ✓ {lastScan} added
               </div>
             )}
             <div className="flex flex-wrap gap-3 mb-3">
@@ -202,44 +231,47 @@ export default function Billing() {
                   onChange={e => setScannedBarcode(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && handleManualBarcode()}
                   placeholder="Type barcode and press Enter..."
-                  className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 text-slate-700 text-sm rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                  className="w-full pl-10 pr-4 py-2 bg-white border border-gray-200 text-slate-700 text-xs rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                 />
               </div>
-              <button onClick={handleManualBarcode} className="bg-emerald-600 text-white px-5 py-2.5 rounded-lg text-sm font-semibold hover:bg-emerald-700 transition whitespace-nowrap">Add</button>
+              <button onClick={handleManualBarcode} className="bg-emerald-600 text-white px-4 py-1.5 rounded-lg text-xs font-semibold hover:bg-emerald-700 transition whitespace-nowrap">Add</button>
             </div>
-            <p className="text-xs text-slate-400">Point your camera at a barcode to scan automatically, or type it in manually.</p>
+            <p className="text-[10px] text-slate-400">Point your camera at a barcode to scan automatically, or type it in manually.</p>
           </div>
 
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-            <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-4">Search Products</h3>
-            <div className="relative mb-4">
-              <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
-              <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by name, SKU, or barcode..." className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 text-slate-700 text-sm rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" />
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-64 overflow-y-auto">
-              {filtered.length === 0 ? (
-                <p className="text-slate-500 text-sm col-span-2 text-center py-4">No products found.</p>
-              ) : (
-                filtered.map(p => (
-                  <div key={p.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition">
-                    <div>
-                      <p className="font-medium text-slate-800 text-sm">{p.name}</p>
-                      <p className="text-xs text-slate-500">₹{p.price} | {p.sku}</p>
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
+            <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Added for Billing</h3>
+            {cart.length === 0 ? (
+              <p className="text-slate-500 text-xs text-center py-4">No items added. Add products from Inventory or scan barcode.</p>
+            ) : (
+              <div className="space-y-2 max-h-64 overflow-y-auto">
+                {cart.map(item => (
+                  <div key={item.id} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-slate-800 text-xs truncate">{item.name}</p>
+                      <p className="text-[10px] text-slate-500">₹{item.price}</p>
                     </div>
-                    <button onClick={() => addToCart(p)} className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-semibold hover:bg-emerald-700 transition">Add</button>
+                    <div className="flex items-center gap-1 ml-2">
+                      <button onClick={() => updateQty(item.id, -1)} className="w-5 h-5 flex items-center justify-center bg-gray-200 rounded hover:bg-gray-300 text-[10px] font-bold">−</button>
+                      <span className="w-5 text-center text-xs font-medium">{item.quantity}</span>
+                      <button onClick={() => updateQty(item.id, 1)} className="w-5 h-5 flex items-center justify-center bg-gray-200 rounded hover:bg-gray-300 text-[10px] font-bold">+</button>
+                      <button onClick={() => removeFromCart(item.id)} className="ml-1 p-1 text-red-500 hover:bg-red-50 rounded">
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                      </button>
+                    </div>
                   </div>
-                ))
-              )}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 
         <div className="space-y-4">
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider">Customer</h3>
-              <button onClick={() => setShowAddCustomerModal(true)} className="text-xs font-semibold text-emerald-600 hover:text-emerald-700 flex items-center gap-1 transition">
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" /></svg>
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Customer</h3>
+              <button onClick={() => setShowAddCustomerModal(true)} className="text-[10px] font-semibold text-emerald-600 hover:text-emerald-700 flex items-center gap-1 transition">
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" /></svg>
                 Add Customer
               </button>
             </div>
@@ -250,18 +282,18 @@ export default function Billing() {
                 onChange={e => { setCustomerSearch(e.target.value); setShowCustomerDropdown(true); }}
                 onFocus={() => setShowCustomerDropdown(true)}
                 placeholder="Search by name or phone..."
-                className="w-full border border-gray-200 text-slate-700 text-sm rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                className="w-full border border-gray-200 text-slate-700 text-xs rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
               />
               {showCustomerDropdown && customerSearch && (
                 <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-10 max-h-48 overflow-y-auto">
                   {customerFiltered.length === 0 ? (
-                    <p className="p-3 text-sm text-slate-400">No customers found.</p>
+                    <p className="p-2 text-xs text-slate-400">No customers found.</p>
                   ) : (
                     customerFiltered.map(c => (
                       <button
                         key={c.id}
-                        onMouseDown={() => { setCustomerName(c.name); setCustomerSearch(c.name); setShowCustomerDropdown(false); }}
-                        className="w-full text-left p-3 hover:bg-gray-50 text-sm border-b border-gray-100 last:border-0"
+                        onMouseDown={() => { setCustomerName(c.name); setCustomerPhone(c.phone || ''); setCustomerSearch(c.name); setShowCustomerDropdown(false); }}
+                        className="w-full text-left p-2 hover:bg-gray-50 text-xs border-b border-gray-100 last:border-0"
                       >
                         <span className="font-medium text-slate-800">{c.name}</span>
                         <span className="text-slate-500 ml-2">{c.phone}</span>
@@ -273,78 +305,71 @@ export default function Billing() {
             </div>
           </div>
 
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-            <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-4">Current Bill</h3>
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
+            <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Current Bill</h3>
             {cart.length === 0 ? (
-              <p className="text-slate-500 text-sm text-center py-4">No items added.</p>
+              <p className="text-slate-500 text-xs text-center py-3">No items added.</p>
             ) : (
-              <div className="space-y-3 max-h-80 overflow-y-auto">
+              <div className="space-y-2 max-h-64 overflow-y-auto">
                 {cart.map(item => (
                   <div key={item.id} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium text-slate-800 text-sm truncate">{item.name}</p>
-                      <p className="text-xs text-slate-500">₹{item.price} × {item.quantity} = ₹{(item.price * item.quantity).toFixed(2)}</p>
+                      <p className="font-medium text-slate-800 text-xs truncate">{item.name}</p>
+                      <p className="text-[10px] text-slate-500">₹{item.price} × {item.quantity}</p>
                     </div>
-                    <div className="flex items-center gap-1 ml-2">
-                      <button onClick={() => updateQty(item.id, -1)} className="w-6 h-6 flex items-center justify-center bg-gray-200 rounded hover:bg-gray-300 text-xs font-bold">−</button>
-                      <span className="w-6 text-center text-sm font-medium">{item.quantity}</span>
-                      <button onClick={() => updateQty(item.id, 1)} className="w-6 h-6 flex items-center justify-center bg-gray-200 rounded hover:bg-gray-300 text-xs font-bold">+</button>
-                      <button onClick={() => removeFromCart(item.id)} className="ml-1 p-1 text-red-500 hover:bg-red-50 rounded">
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                      </button>
-                    </div>
+                    <span className="text-xs font-medium text-slate-800">₹{(item.price * item.quantity).toFixed(2)}</span>
                   </div>
                 ))}
               </div>
             )}
-            <div className="mt-4 pt-4 border-t border-gray-100 space-y-2">
-              <div className="flex justify-between text-sm">
+            <div className="mt-3 pt-3 border-t border-gray-100 space-y-1">
+              <div className="flex justify-between text-xs">
                 <span className="text-slate-500">Subtotal</span>
                 <span className="font-medium">₹{subtotal.toFixed(2)}</span>
               </div>
-              <div className="flex justify-between text-sm">
+              <div className="flex justify-between text-xs">
                 <span className="text-slate-500">GST</span>
                 <span className="font-medium">₹{gstAmount.toFixed(2)}</span>
               </div>
-              <div className="flex justify-between text-lg font-bold text-slate-800">
+              <div className="flex justify-between text-sm font-bold text-slate-800">
                 <span>Total</span>
                 <span>₹{grandTotal.toFixed(2)}</span>
               </div>
             </div>
-            {billError && <p className="text-red-500 text-xs mt-2 text-center">{billError}</p>}
-            <button onClick={() => { setBillError(''); if (cart.length > 0 && customerName) setShowPaymentModal(true); else if (!customerName) setBillError('Please select a customer'); else setBillError('Add at least one item to the cart'); }} className="w-full mt-4 bg-emerald-600 text-white px-5 py-3 rounded-lg text-sm font-semibold hover:bg-emerald-700 transition">Generate Bill</button>
+            {billError && <p className="text-red-500 text-[10px] mt-1 text-center">{billError}</p>}
+            <button onClick={() => { setBillError(''); if (cart.length > 0 && customerName) setShowPaymentModal(true); else if (!customerName) setBillError('Please select a customer'); else setBillError('Add at least one item to the cart'); }} className="w-full mt-3 bg-emerald-600 text-white px-4 py-1.5 rounded-lg text-xs font-semibold hover:bg-emerald-700 transition">Generate Bill</button>
           </div>
         </div>
       </div>
 
       {showAddCustomerModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-bold text-slate-800">Add Customer</h3>
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-base font-bold text-slate-800">Add Customer</h3>
               <button onClick={() => { setShowAddCustomerModal(false); setCustomerErrors({}); }} className="p-1 hover:bg-gray-100 rounded-lg transition">
                 <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
               </button>
             </div>
-            <div className="space-y-4">
+            <div className="space-y-3">
               <div>
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Name</label>
-                <input value={newCustomer.name} onChange={e => setNewCustomer({...newCustomer, name: e.target.value})} className="w-full border border-gray-200 text-slate-700 text-sm rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" />
-                {customerErrors.name && <p className="text-red-500 text-xs mt-1">{customerErrors.name}</p>}
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 block">Name</label>
+                <input value={newCustomer.name} onChange={e => setNewCustomer({...newCustomer, name: e.target.value})} className="w-full border border-gray-200 text-slate-700 text-xs rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" />
+                {customerErrors.name && <p className="text-red-500 text-xs mt-0.5">{customerErrors.name}</p>}
               </div>
               <div>
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Phone</label>
-                <input value={newCustomer.phone} onChange={e => setNewCustomer({...newCustomer, phone: e.target.value})} className="w-full border border-gray-200 text-slate-700 text-sm rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" />
-                {customerErrors.phone && <p className="text-red-500 text-xs mt-1">{customerErrors.phone}</p>}
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 block">Phone</label>
+                <input value={newCustomer.phone} onChange={e => setNewCustomer({...newCustomer, phone: e.target.value})} className="w-full border border-gray-200 text-slate-700 text-xs rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" />
+                {customerErrors.phone && <p className="text-red-500 text-xs mt-0.5">{customerErrors.phone}</p>}
               </div>
               <div>
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Email</label>
-                <input value={newCustomer.email} onChange={e => setNewCustomer({...newCustomer, email: e.target.value})} className="w-full border border-gray-200 text-slate-700 text-sm rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" />
-                {customerErrors.email && <p className="text-red-500 text-xs mt-1">{customerErrors.email}</p>}
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 block">Email</label>
+                <input value={newCustomer.email} onChange={e => setNewCustomer({...newCustomer, email: e.target.value})} className="w-full border border-gray-200 text-slate-700 text-xs rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" />
+                {customerErrors.email && <p className="text-red-500 text-xs mt-0.5">{customerErrors.email}</p>}
               </div>
-              <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
-                <button onClick={() => { setShowAddCustomerModal(false); setCustomerErrors({}); }} className="px-5 py-2.5 text-sm font-semibold text-slate-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition">Cancel</button>
-                <button onClick={handleAddCustomer} className="px-5 py-2.5 text-sm font-semibold text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 transition">Add</button>
+              <div className="flex justify-end gap-3 pt-3 border-t border-gray-100">
+                <button onClick={() => { setShowAddCustomerModal(false); setCustomerErrors({}); }} className="px-4 py-1.5 text-xs font-semibold text-slate-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition">Cancel</button>
+                <button onClick={handleAddCustomer} className="px-4 py-1.5 text-xs font-semibold text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 transition">Add</button>
               </div>
             </div>
           </div>
@@ -353,24 +378,24 @@ export default function Billing() {
 
       {showPaymentModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
-            <h3 className="text-lg font-bold text-slate-800 mb-4">Payment Summary</h3>
-            <div className="space-y-3 mb-6">
-              <div className="flex justify-between text-sm"><span className="text-slate-500">Customer</span><span className="font-medium">{customerName || 'Walk-in Customer'}</span></div>
-              <div className="flex justify-between text-sm"><span className="text-slate-500">Items</span><span className="font-medium">{cart.reduce((s, i) => s + i.quantity, 0)}</span></div>
-              <div className="flex justify-between text-sm"><span className="text-slate-500">Subtotal</span><span className="font-medium">₹{subtotal.toFixed(2)}</span></div>
-              <div className="flex justify-between text-sm"><span className="text-slate-500">GST</span><span className="font-medium">₹{gstAmount.toFixed(2)}</span></div>
-              <div className="flex justify-between text-lg font-bold text-slate-800 border-t pt-3"><span>Grand Total</span><span>₹{grandTotal.toFixed(2)}</span></div>
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-4">
+            <h3 className="text-base font-bold text-slate-800 mb-4">Payment Summary</h3>
+            <div className="space-y-2 mb-4">
+              <div className="flex justify-between text-xs"><span className="text-slate-500">Customer</span><span className="font-medium">{customerName || 'Walk-in Customer'}</span></div>
+              <div className="flex justify-between text-xs"><span className="text-slate-500">Items</span><span className="font-medium">{cart.reduce((s, i) => s + i.quantity, 0)}</span></div>
+              <div className="flex justify-between text-xs"><span className="text-slate-500">Subtotal</span><span className="font-medium">₹{subtotal.toFixed(2)}</span></div>
+              <div className="flex justify-between text-xs"><span className="text-slate-500">GST</span><span className="font-medium">₹{gstAmount.toFixed(2)}</span></div>
+              <div className="flex justify-between text-sm font-bold text-slate-800 border-t pt-2"><span>Grand Total</span><span>₹{grandTotal.toFixed(2)}</span></div>
             </div>
-            <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Select Payment Method</h4>
-            <div className="grid grid-cols-2 gap-3 mb-6">
+            <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">Select Payment Method</h4>
+            <div className="grid grid-cols-2 gap-2 mb-4">
               {paymentMethods.map(m => (
-                <button key={m} className="p-3 border border-gray-200 rounded-lg text-sm font-medium hover:bg-emerald-50 hover:border-emerald-300 transition">💳 {m}</button>
+                <button key={m} className="p-2 border border-gray-200 rounded-lg text-xs font-medium hover:bg-emerald-50 hover:border-emerald-300 transition">💳 {m}</button>
               ))}
             </div>
             <div className="flex gap-3">
-              <button onClick={() => setShowPaymentModal(false)} className="flex-1 px-5 py-2.5 text-sm font-semibold text-slate-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition">Cancel</button>
-              <button onClick={handleGenerateBill} className="flex-1 px-5 py-2.5 text-sm font-semibold text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 transition">Pay & Generate Bill</button>
+              <button onClick={() => setShowPaymentModal(false)} className="flex-1 px-4 py-1.5 text-xs font-semibold text-slate-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition">Cancel</button>
+              <button onClick={handleGenerateBill} className="flex-1 px-4 py-1.5 text-xs font-semibold text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 transition">Pay & Generate Bill</button>
             </div>
           </div>
         </div>

@@ -3,6 +3,8 @@ const STORAGE_KEYS = {
   customers: 'billing_customers',
   sellers: 'billing_sellers',
   bills: 'billing_bills',
+  categories: 'billing_categories',
+  shop: 'billing_shop',
 };
 
 export async function loadData(key, jsonFile) {

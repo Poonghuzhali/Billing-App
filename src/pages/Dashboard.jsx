@@ -95,42 +95,42 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="p-4 md:p-8 max-w-7xl mx-auto">
-      <div className="mb-8">
-        <h2 className="text-2xl font-bold text-slate-800">Dashboard</h2>
+    <div className="p-3 md:p-6 max-w-7xl mx-auto">
+      <div className="mb-6">
+        <h2 className="text-lg font-bold text-slate-800">Dashboard</h2>
         <p className="text-slate-500">Real-time overview of your shop.</p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-          <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider">Total Products</h3>
-          <p className="text-3xl font-extrabold mt-1 text-slate-800">{totalProducts}</p>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
+          <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Products</h3>
+          <p className="text-xl font-extrabold mt-1 text-slate-800">{totalProducts}</p>
         </div>
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-          <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider">Total Stock</h3>
-          <p className="text-3xl font-extrabold mt-1 text-emerald-600">{totalStock}</p>
+        <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
+          <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Stock</h3>
+          <p className="text-xl font-extrabold mt-1 text-emerald-600">{totalStock}</p>
         </div>
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-          <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider">Total Bills</h3>
-          <p className="text-3xl font-extrabold mt-1 text-blue-600">{totalBills}</p>
+        <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
+          <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Bills</h3>
+          <p className="text-xl font-extrabold mt-1 text-blue-600">{totalBills}</p>
         </div>
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-          <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider">Total Revenue</h3>
-          <p className="text-3xl font-extrabold mt-1 text-emerald-600">₹{totalRevenue.toFixed(2)}</p>
+        <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
+          <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Revenue</h3>
+          <p className="text-xl font-extrabold mt-1 text-emerald-600">₹{totalRevenue.toFixed(2)}</p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 md:p-6">
-          <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-4">Most Selling Products</h3>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-3 md:p-4">
+          <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Most Selling Products</h3>
           {barDataValues.length > 0 ? (
             <Bar data={barChartData} options={barOptions} />
           ) : (
             <p className="text-slate-400 text-sm text-center py-8">No sales data yet.</p>
           )}
         </div>
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 md:p-6">
-          <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-4">Stock by Category</h3>
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-3 md:p-4">
+          <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Stock by Category</h3>
           {Object.keys(categoryStock).length > 0 ? (
             <Pie data={pieChartData} options={pieOptions} />
           ) : (

@@ -3,10 +3,11 @@ import { NavLink } from 'react-router-dom';
 const links = [
   { to: '/', label: 'Dashboard', icon: '📊', end: true },
   { to: '/billing', label: 'Billing', icon: '🧾' },
-  { to: '/bills', label: 'Bills', icon: '📄' },
+  { to: '/invoices', label: 'Invoices', icon: '📄' },
   { to: '/customers', label: 'Customer', icon: '👤' },
   { to: '/inventory', label: 'Inventory', icon: '📦' },
   { to: '/sellers', label: 'Seller', icon: '🏪' },
+  { to: '/settings', label: 'Settings', icon: '⚙️' },
 ];
 
 export default function Sidebar({ isOpen, onClose }) {
@@ -23,7 +24,7 @@ export default function Sidebar({ isOpen, onClose }) {
           isOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
-        <div className="flex items-center justify-between p-4 text-xl font-bold border-b border-slate-700">
+        <div className="flex items-center justify-between p-4 text-base font-bold border-b border-slate-700">
           <span>Billing<span className="text-emerald-400">App</span></span>
           <button onClick={onClose} className="lg:hidden p-1 rounded hover:bg-slate-800 transition">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -39,7 +40,7 @@ export default function Sidebar({ isOpen, onClose }) {
               end={link.end}
               onClick={onClose}
               className={({ isActive }) =>
-                `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition ${
+                `flex items-center gap-3 px-3 py-2 rounded-lg text-xs transition ${
                   isActive ? 'bg-emerald-600 text-white' : 'text-slate-300 hover:bg-slate-800 hover:text-white'
                 }`
               }
@@ -49,7 +50,7 @@ export default function Sidebar({ isOpen, onClose }) {
             </NavLink>
           ))}
         </nav>
-        <div className="p-3 text-xs text-slate-500 border-t border-slate-700">
+        <div className="p-3 text-[10px] text-slate-500 border-t border-slate-700">
           &copy; 2026 BillingApp
         </div>
       </aside>
