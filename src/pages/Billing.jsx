@@ -193,17 +193,22 @@ export default function Billing() {
     alert(`Invoice ${newBill.invoiceNumber} generated successfully!`);
   };
 
-  const handleSaveBill = () => {
+  const handleGenerateAndPrintBill = async () => {
     if (!customerName) { setBillError('Please select a customer'); return; }
     if (cart.length === 0) { setBillError('Add at least one item to the cart'); return; }
     setBillError('');
+
+    const billNumber = generateBillNumber();
+    const invoiceNumber = generateInvoiceNumber();
+    const today = new Date().toISOString().split('T')[0];
+
     const newBill = {
       id: Date.now(),
-      billNumber: generateBillNumber(),
-      invoiceNumber: generateInvoiceNumber(),
+      billNumber,
+      invoiceNumber,
       customerName,
       customerPhone,
-      date: new Date().toISOString().split('T')[0],
+      date: today,
       items: cart.map(item => ({
         productName: item.name,
         quantity: item.quantity,
@@ -215,24 +220,12 @@ export default function Billing() {
       grandTotal,
       shop: shop ? { ...shop } : null
     };
+
     const updated = [...bills, newBill];
     setBills(updated);
     saveData('bills', updated);
     reduceInventoryStock(cart);
-    setCart([]);
-    clearCart();
-    setCustomerName('');
-    setCustomerPhone('');
-    setCustomerSearch('');
-    alert(`Invoice ${newBill.invoiceNumber} saved!`);
-  };
 
-  const handlePrintBill = async () => {
-    if (!customerName) { setBillError('Please select a customer'); return; }
-    if (cart.length === 0) { setBillError('Add at least one item to the cart'); return; }
-    setBillError('');
-    const today = new Date().toISOString().split('T')[0];
-    const invNum = (() => { const { year, seq } = nextSequence(); return `INV-${year}-${String(seq).padStart(4, '0')}`; })();
     const itemsHtml = cart.map(item => `
       <tr>
         <td style="padding:7px 8px;border-bottom:1px solid #e5e7eb;font-size:12px">${item.name}</td>
@@ -251,7 +244,7 @@ export default function Billing() {
           ${shop && shop.address ? `<p style="font-size:11px;color:#475569;margin:2px 0">${shop.address}</p>` : ''}
         </div>
         <div style="display:flex;justify-content:space-between;margin-bottom:16px;font-size:12px">
-          <div><div style="font-size:10px;text-transform:uppercase;color:#64748b;letter-spacing:0.5px;margin-bottom:3px">Invoice</div>${invNum}<br><span style="color:#64748b;font-size:11px">${today}</span></div>
+          <div><div style="font-size:10px;text-transform:uppercase;color:#64748b;letter-spacing:0.5px;margin-bottom:3px">Invoice</div>${invoiceNumber}<br><span style="color:#64748b;font-size:11px">${today}</span></div>
         </div>
         <div style="margin-bottom:16px;font-size:12px">
           <div style="font-size:10px;text-transform:uppercase;color:#64748b;letter-spacing:0.5px;margin-bottom:3px">Bill To</div>
@@ -315,12 +308,19 @@ export default function Billing() {
         pdf.addImage(imgData, 'JPEG', 0, rest - ph, pw, ph);
         rest -= pdf.internal.pageSize.getHeight();
       }
-      pdf.save(`Bill-${invNum}.pdf`);
+      pdf.save(`Bill-${invoiceNumber}.pdf`);
     } catch (err) {
       alert('PDF Error: ' + err.message);
     } finally {
       if (document.body.contains(iframe)) document.body.removeChild(iframe);
     }
+
+    setCart([]);
+    clearCart();
+    setCustomerName('');
+    setCustomerPhone('');
+    setCustomerSearch('');
+    alert(`Invoice ${invoiceNumber} saved!`);
   };
 
   const paymentMethods = ['Cash', 'UPI', 'Card', 'Credit'];
@@ -504,20 +504,13 @@ export default function Billing() {
             </div>
             {billError && <p className="text-red-500 text-[10px] mt-1 text-center">{billError}</p>}
 
-            <div className="mt-3 flex gap-2">
+            <div className="mt-3">
               <button
-                onClick={handleSaveBill}
-                className="flex-1 bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-emerald-700 transition flex items-center justify-center gap-1.5"
+                onClick={handleGenerateAndPrintBill}
+                className="w-full bg-emerald-600 text-white px-3 py-2 rounded-lg text-sm font-semibold hover:bg-emerald-700 transition flex items-center justify-center gap-2"
               >
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" /></svg>
-                Generate & Save Bill
-              </button>
-              <button
-                onClick={handlePrintBill}
-                className="flex-1 bg-blue-600 text-white px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-blue-700 transition flex items-center justify-center gap-1.5"
-              >
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
-                Print Bill
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" /></svg>
+                Generate & Print Bill
               </button>
             </div>
           </div>
