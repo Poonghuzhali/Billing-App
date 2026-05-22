@@ -131,7 +131,7 @@ export default function Inventory() {
       setProducts(updated);
       saveData('inventory', updated);
     } else {
-      const barcode = `BAR-${Date.now()}`;
+      const barcode = `2${Date.now()}`;
       const newProduct = { ...form, barcode, id: Date.now(), price: Number(form.price), stock: Number(form.stock) };
       const updated = [...products, newProduct];
       setProducts(updated);
@@ -200,7 +200,7 @@ export default function Inventory() {
                   <tr key={p.id} className="hover:bg-gray-50">
                     <td className="px-2 py-1.5 text-xs font-medium text-slate-800">{p.name}</td>
                     <td className="px-2 py-1.5 text-xs text-slate-600">{p.sku}</td>
-                    <td className="px-2 py-1.5"><Barcode value={p.barcode} width={1.2} height={28} downloadable /></td>
+                    <td className="px-2 py-1.5"><Barcode value={p.barcode} downloadable /></td>
                     <td className="px-2 py-1.5 text-xs text-slate-600">{p.invoiceNumber}</td>
                     <td className="px-2 py-1.5"><span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded text-[10px] font-semibold">{p.gst}</span></td>
                     <td className="px-2 py-1.5 text-xs text-slate-600">{p.mfgDate}</td>
@@ -257,7 +257,7 @@ export default function Inventory() {
                       <p className="text-xs text-slate-600 mb-2">{products[editIndex]?.barcode}</p>
                       {products[editIndex]?.barcode && (
                         <div className="p-2 bg-gray-50 rounded flex justify-center">
-                          <Barcode value={products[editIndex].barcode} width={1.5} height={30} downloadable />
+                          <Barcode value={products[editIndex].barcode} downloadable />
                         </div>
                       )}
                     </>

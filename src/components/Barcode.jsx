@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import JsBarcode from 'jsbarcode';
 
-export default function Barcode({ value, width = 1, height = 24, downloadable }) {
+export default function Barcode({ value, width = 2, height = 50, downloadable }) {
   const svgRef = useRef(null);
 
   useEffect(() => {
@@ -10,9 +10,12 @@ export default function Barcode({ value, width = 1, height = 24, downloadable })
         format: 'CODE128',
         width,
         height,
-        displayValue: false,
-        background: 'transparent',
-        margin: 0,
+        displayValue: true,
+        fontSize: 12,
+        font: 'monospace',
+        textMargin: 4,
+        background: '#ffffff',
+        margin: 8,
       });
     }
   }, [value, width, height]);
@@ -46,7 +49,7 @@ export default function Barcode({ value, width = 1, height = 24, downloadable })
 
   return (
     <div className="flex flex-col items-center gap-1">
-      <svg ref={svgRef} className="inline-block" />
+      <svg ref={svgRef} className="inline-block max-w-full" style={{ background: '#fff' }} />
       {downloadable && (
         <button onClick={handleDownload} className="text-slate-400 hover:text-slate-600 transition" title="Download barcode">
           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

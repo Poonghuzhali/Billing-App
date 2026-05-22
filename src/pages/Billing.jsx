@@ -54,7 +54,7 @@ export default function Billing() {
       if (e.key === 'Enter') {
         const code = scanBuffer.current.trim();
         if (code.length > 3) {
-          const found = products.find(p => p.barcode === code);
+          const found = products.find(p => p.barcode === code || p.sku === code);
           if (found) {
             addToCart(found);
             setLastScan(found.name);
@@ -64,10 +64,10 @@ export default function Billing() {
         scanBuffer.current = '';
         return;
       }
-      if (e.key.length === 1) {
+      if (e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
         scanBuffer.current += e.key;
         clearTimeout(timer);
-        timer = setTimeout(() => { scanBuffer.current = ''; }, 200);
+        timer = setTimeout(() => { scanBuffer.current = ''; }, 500);
       }
     };
     window.addEventListener('keydown', handleKey);
@@ -78,13 +78,15 @@ export default function Billing() {
   }, [products, addToCart]);
 
   const handleManualBarcode = () => {
-    const found = products.find(p => p.barcode === scannedBarcode);
+    const code = scannedBarcode.trim();
+    if (!code) return;
+    const found = products.find(p => p.barcode === code || p.sku === code);
     if (found) {
       addToCart(found);
       setLastScan(found.name);
       setTimeout(() => setLastScan(null), 2000);
     } else {
-      alert('Product not found with this barcode.');
+      alert('Product not found with this barcode or SKU.');
     }
     setScannedBarcode('');
   };
