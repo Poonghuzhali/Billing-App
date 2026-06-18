@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { loadData, saveData } from '../utils/storage';
+import html2canvas from 'html2canvas';
+import { jsPDF } from 'jspdf';
 
 export default function Invoices() {
   const [invoices, setInvoices] = useState([]);
@@ -123,13 +125,6 @@ export default function Invoices() {
 
     try {
       await new Promise(r => setTimeout(r, 300));
-      const [html2canvasMod, jsPDFMod] = await Promise.all([
-        import('html2canvas'),
-        import('jspdf'),
-      ]);
-      const html2canvas = html2canvasMod.default;
-      const jsPDF = jsPDFMod.default;
-
       const body = iframe.contentDocument.body;
       body.style.display = 'inline-block';
       const canvas = await html2canvas(body, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });

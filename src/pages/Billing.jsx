@@ -2,6 +2,8 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import CameraScanner from '../components/CameraScanner';
 import { loadData, saveData } from '../utils/storage';
 import { getCart, saveCart, clearCart } from '../utils/cart';
+import html2canvas from 'html2canvas';
+import { jsPDF } from 'jspdf';
 
 export default function Billing() {
   const [products, setProducts] = useState([]);
@@ -38,7 +40,7 @@ export default function Billing() {
     const currentCart = getCart();
     const existing = currentCart.find(item => item.id === product.id);
     const inCartQty = existing ? existing.quantity : 0;
-    if (inCartQty >= product.stock) {
+    if (inCartQty >= (product.stock ?? 0)) {
       alert(`"${product.name}" is out of stock!`);
       return;
     }
@@ -300,13 +302,6 @@ export default function Billing() {
 
     try {
       await new Promise(r => setTimeout(r, 300));
-      const [html2canvasMod, jsPDFMod] = await Promise.all([
-        import('html2canvas'),
-        import('jspdf'),
-      ]);
-      const html2canvas = html2canvasMod.default;
-      const jsPDF = jsPDFMod.default;
-
       const body = iframe.contentDocument.body;
       body.style.display = 'inline-block';
       const canvas = await html2canvas(body, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
