@@ -39,8 +39,7 @@ export default function Billing() {
     const existing = currentCart.find(item => item.id === product.id);
     const inCartQty = existing ? existing.quantity : 0;
     if (inCartQty >= product.stock) {
-      setBillError(`"${product.name}" is out of stock!`);
-      setTimeout(() => setBillError(''), 3000);
+      alert(`"${product.name}" is out of stock!`);
       return;
     }
     setCart(prev => {
@@ -118,8 +117,7 @@ export default function Billing() {
     const item = cart.find(i => i.id === id);
     if (!item) return;
     if (delta > 0 && item.quantity >= (item.stock || 0)) {
-      setBillError(`"${item.name}" is out of stock!`);
-      setTimeout(() => setBillError(''), 3000);
+      alert(`"${item.name}" is out of stock!`);
       return;
     }
     const updated = cart.map(i =>
