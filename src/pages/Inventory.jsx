@@ -104,8 +104,12 @@ export default function Inventory() {
   };
 
   const handleAddToCart = (product) => {
-    addToCartUtil(product);
-    setCartMsg(`${product.name} added`);
+    const result = addToCartUtil(product);
+    if (result.success) {
+      setCartMsg(`${product.name} added`);
+    } else {
+      setCartMsg(`"${product.name}" is out of stock!`);
+    }
     setTimeout(() => setCartMsg(''), 2000);
   };
 
